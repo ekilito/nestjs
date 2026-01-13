@@ -20,8 +20,7 @@ class NestApplication {
   }
 
   // 初始化应用 
-  async init() {
-    // 取出模块里所有的控制器，然后做好路由配置
+  async init() { // 取出模块里所有的控制器，然后做好路由配置
 
     const controllers = Reflect.getMetadata('controllers', this.module) || [];  // 获取模块中的控制器元数据 [class AppControllers]
     Logger.log('AppModule dependencies initialized', 'InstanceLoader'); // 记录日志：应用模块依赖已初始化
@@ -29,17 +28,18 @@ class NestApplication {
     for (const Controller of controllers) {
       const controller = new Controller(); // 创建每个控制器实例
       const prefix = Reflect.getMetadata('prefix', Controller) || '/';   // 获取控制器的路由前缀元数据，默认为 '/'
-      const controllerPrototype = Reflect.getPrototypeOf(controller);// 获取控制器的原型对象
-      // 记录日志：映射控制器名称和前缀 开始解析路由
+      // 开始解析路由
       Logger.log(`${Controller.name} {${prefix}}:`, 'RoutesResolver');
 
-      // 遍历控制器原型对象上的所有方法
+      const controllerPrototype = Reflect.getPrototypeOf(controller);// 获取控制器的原型对象
+
+      // 遍历控制器原型对象上的所有方法名
       for (const methodName of Object.getOwnPropertyNames(controllerPrototype)) {
-        const method = controllerPrototype[methodName];
-        // 获取方法的路径元数据
-        const pathMetadata = Reflect.getMetadata('path', method);
-        // 获取方法的 HTTP 方法元数据
-        const httpMethod = Reflect.getMetadata('method', method);
+        const method = controllerPrototype[methodName]; // 获取原型上的方法 （index）
+
+        const pathMetadata = Reflect.getMetadata('path', method);  // 获取方法的路径元数据
+        const httpMethod = Reflect.getMetadata('method', method); // 获取方法的 HTTP 方法元数据
+        // 如果方法存在，则进行路由配置
         if (httpMethod) {
           // 组合路由路径
           const routPath = path.posix.join('/', prefix, pathMetadata);
