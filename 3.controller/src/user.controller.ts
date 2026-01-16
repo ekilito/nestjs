@@ -1,4 +1,4 @@
-import { Controller, Get, Request, Req, Query } from '@nestjs/common';
+import { Controller, Get, Request, Req, Query, Headers } from '@nestjs/common';
 import { Request as ExpressRequest } from 'express';
 
 // 使用 @Controller 装饰器定义 'users' 路由
@@ -31,5 +31,11 @@ export class UserController {
     console.log('query', query);
     console.log('id', id);
     return `Query ID: ${id}`;
+  }
+
+  @Get('headers')
+  handleHeaders(@Headers('accept') accept: string): string {
+    console.log(accept);
+    return `Header accept: ${accept}`;
   }
 }
