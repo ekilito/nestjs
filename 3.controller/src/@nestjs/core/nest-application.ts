@@ -45,7 +45,10 @@ class NestApplication {
           const routPath = path.posix.join('/', prefix, pathMetadata);
           // 注册路由及其处理函数
           this.app[httpMethod.toLowerCase()](routPath, async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
-            const result = await method.call(controller);
+            // 解析方法参数
+            const args = this.resolveParams(controller, methodName, req, res, next);
+            // 调用方法并获取结果
+            const result = await method.call(controller, ...args);
             res.send(result);
           });
           // 记录日志：映射路由路径和 HTTP 方法
@@ -55,6 +58,23 @@ class NestApplication {
     }
     // 记录日志：Nest 应用程序成功启动
     Logger.log('Nest application successfully started', 'NestApplication');
+  }
+
+  // 解析方法参数
+  private resolveParams(instance: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: Function): any[] {
+    // 获取参数元数据
+    const paramsMetadata = Reflect.getMetadata(`params:${methodName}`, instance, methodName) || [];
+    // 根据参数的索引排序并返回参数数组
+    return paramsMetadata.map((param: any) => {
+      const { key } = param;
+      switch (key) {
+        case 'Request':
+        case 'Req':
+          return req;
+        default:
+          return null;
+      }
+    });
   }
 
   // 启动 HTTP 服务器
