@@ -1,4 +1,4 @@
-import { Controller, Get, Request, Req } from '@nestjs/common';
+import { Controller, Get, Request, Req, Query } from '@nestjs/common';
 import { Request as ExpressRequest } from 'express';
 
 // 使用 @Controller 装饰器定义 'users' 路由
@@ -24,5 +24,12 @@ export class UserController {
     console.log(req.path);
     console.log(req.method)
     return 'Request handled';
+  }
+
+  @Get('query')
+  handleQuery(@Query() query: any, @Query('id') id: string): string {
+    console.log('query', query);
+    console.log('id', id);
+    return `Query ID: ${id}`;
   }
 }

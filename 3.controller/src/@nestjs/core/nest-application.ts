@@ -66,11 +66,13 @@ class NestApplication {
     const paramsMetadata = Reflect.getMetadata(`params:${methodName}`, instance, methodName) || [];
     // 根据参数的索引排序并返回参数数组
     return paramsMetadata.map((param: any) => {
-      const { key } = param;
+      const { index, key, data } = param;
       switch (key) {
         case 'Request':
         case 'Req':
           return req;
+        case 'Query':
+          return data ? req.query[data] : req.query;
         default:
           return null;
       }
