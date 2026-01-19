@@ -12,6 +12,8 @@ class NestApplication {
 
   constructor(module: any) {
     this.module = module;
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
   }
 
   // 定义 use 方法，用于注册中间件
@@ -81,6 +83,8 @@ class NestApplication {
           return req.ip;
         case 'Param':
           return data ? req.params[data] : req.params;
+        case 'Body':
+          return data ? req.body[data] : req.body;
         default:
           return null;
       }

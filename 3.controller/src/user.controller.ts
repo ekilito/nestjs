@@ -1,4 +1,4 @@
-import { Controller, Get, Request, Req, Query, Headers, Session, Ip, Param } from '@nestjs/common';
+import { Controller, Get, Request, Req, Query, Headers, Session, Ip, Param, Post, Body } from '@nestjs/common';
 import { Request as ExpressRequest } from 'express';
 
 // 使用 @Controller 装饰器定义 'users' 路由
@@ -59,5 +59,17 @@ export class UserController {
   getParamById(@Param('id') id: string): string {
     console.log('ID:', id);
     return `Param ID: ${id}`;
+  }
+
+  @Get('ab*de')
+  handleWildcardRoute() {
+    return 'This route uses a wildcard';
+  }
+
+  @Post('create')
+  createUser(@Body() createUserDto, @Body('username') username): string {
+    console.log('createUserDto', createUserDto);
+    console.log('username', username);
+    return 'This action adds a new user';
   }
 }

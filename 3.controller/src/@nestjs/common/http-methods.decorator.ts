@@ -15,5 +15,11 @@ export function Get(path: string = ''): MethodDecorator {
     // 为属性描述符的值（即方法）定义 'method' 元数据，值为 'GET'  method=GET  (descriptor.value.method = GET)
     Reflect.defineMetadata('method', 'GET', descriptor.value);
   };
+}
 
+export function Post(path: string = ''): MethodDecorator {
+  return (target, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+    Reflect.defineMetadata('path', path, descriptor.value);
+    Reflect.defineMetadata('method', 'POST', descriptor.value);
+  };
 }
