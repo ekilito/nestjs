@@ -65,10 +65,10 @@ class NestApplication {
   // 解析方法参数
   private resolveParams(instance: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: Function): any[] {
     // 获取参数元数据
-    const paramsMetadata = Reflect.getMetadata(`params:${methodName}`, instance, methodName) || [];
+    const paramsMetadata = Reflect.getMetadata(`params`, instance, methodName) || [];
     // 根据参数的索引排序并返回参数数组
     return paramsMetadata.map((param: any) => {
-      const { index, key, data } = param;
+      const { key, data } = param;
       switch (key) {
         case 'Request':
         case 'Req':

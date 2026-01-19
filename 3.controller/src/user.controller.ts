@@ -20,9 +20,9 @@ export class UserController {
   @Get('req')
   // 处理请求的函数，使用 @Request 和 @Req 装饰器注入 ExpressRequest 对象
   handleRequest(@Request() request: ExpressRequest, @Req() req: ExpressRequest): string {
-    console.log(req.url);
-    console.log(req.path);
-    console.log(req.method)
+    console.log('url', req.url);
+    console.log('path', req.path);
+    console.log('method', req.method)
     return 'Request handled';
   }
 
