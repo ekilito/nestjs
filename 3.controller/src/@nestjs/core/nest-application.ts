@@ -53,7 +53,8 @@ class NestApplication {
             const result = await method.call(controller, ...args);
             // 判断controller 的 methodName 方法里有没有使用Response/Res参数装饰器 用了任何一个则不发送
             const responseMeta = this.getResponseMetadata(controller, methodName);
-            if (!responseMeta) return res.send(result);
+            // 如果没有注入 Response/Res 参数装饰器，或者注入了但是传递了 passthrough 选项 都会由Nestjs 返回响应！
+            if (!responseMeta || (responseMeta.data?.passthrough)) return res.send(result);
           });
           // 记录日志：映射路由路径和 HTTP 方法
           Logger.log(`Mapped {${routPath}, ${httpMethod}} route`, 'RouterExplorer');

@@ -80,4 +80,26 @@ export class UserController {
     // console.log('response', response);
     res.send('Custom response');
   }
+
+  /**
+   * passthrough : true 表示让 Nest 不负责响应体的发送
+   */
+
+  @Get('passthrough')
+  passthrough(@Res({ passthrough: true }) res: ExpressResponse): string {
+    // 但是有些只想添加个响应头，仅此而已，不想负责响应体的发送
+    res.setHeader('Cache-Control-key', 'none');
+    // 还是想返回一个值让 Nest 帮我们进行发送响应体操作
+    return 'Custom response！！';
+  }
 }
+
+/**
+ * 在使用 nestjs 的时候，一般来说实体会定义两个类型， 一个是 dto ， 一个是 interface
+ * dto：客户端向服务器提交的数据对象，比如说当前用户注册的时候 {用户名 密码} 
+ * 然后服务器一般会获取此 dto，保存到数据库中，保存的时候可能还会加入默认值 时间戳，对密码加密，过滤某些字段
+ * interface：数据库里保存的数据类型一般会定义一个 interface 定义数据对象的结构
+ * 
+ * userDto { username: string, password: string }
+ * userInterface { id: number, username: string, password: string }
+ */
