@@ -56,7 +56,8 @@ export class UserController {
   }
 
   @Get('param/:id')
-  getParamById(@Param('id') id: string): string {
+  getParamById(@Param() params: any, @Param('id') id: string): string {
+    console.log('params:', params);
     console.log('ID:', id);
     return `Param ID: ${id}`;
   }
