@@ -77,6 +77,8 @@ class NestApplication {
           return data ? req.headers[data] : req.headers;
         case 'Session':
           return req.session;
+        case 'Ip':
+          return req.ip;
         default:
           return null;
       }
