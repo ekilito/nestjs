@@ -1,4 +1,4 @@
-import { Controller, Get, Request, Req, Query, Headers, Session, Ip } from '@nestjs/common';
+import { Controller, Get, Request, Req, Query, Headers, Session, Ip, Param } from '@nestjs/common';
 import { Request as ExpressRequest } from 'express';
 
 // 使用 @Controller 装饰器定义 'users' 路由
@@ -53,5 +53,11 @@ export class UserController {
   getUserIp(@Ip() ip: string): string {
     console.log(ip);
     return `IP: ${ip}`;
+  }
+
+  @Get('param/:id')
+  getParamById(@Param('id') id: string): string {
+    console.log('ID:', id);
+    return `Param ID: ${id}`;
   }
 }

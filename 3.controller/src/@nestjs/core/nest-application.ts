@@ -79,6 +79,8 @@ class NestApplication {
           return req.session;
         case 'Ip':
           return req.ip;
+        case 'Param':
+          return data ? req.params[data] : req.params;
         default:
           return null;
       }

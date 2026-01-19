@@ -16,3 +16,4 @@ export const Query = (queryKey?: string) => createParamDecorator(`Query`)(queryK
 export const Headers = (headerKey?: string) => createParamDecorator(`Headers`)(headerKey);
 export const Session = createParamDecorator('Session');
 export const Ip = createParamDecorator('Ip');
+export const Param = (paramKey?: string) => createParamDecorator(`Param`)(paramKey);
