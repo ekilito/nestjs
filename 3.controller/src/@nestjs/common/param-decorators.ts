@@ -4,6 +4,7 @@ import 'reflect-metadata'; // 引入 'reflect-metadata' 库，用于元数据的
 export const createParamDecorator = (key: string) => {
   return (data?: any) => (target: any, propertyKey: string | symbol, parameterIndex: number) => {
     const existingParameters = Reflect.getMetadata(`params`, target, propertyKey) ?? []; // 获取已经存在的参数元数据，如果不存在则初始化为空数组
+    // console.log('existingParameters', existingParameters)
     existingParameters[parameterIndex] = { index: parameterIndex, key, data }; // 将当前参数的信息（index, key, data）添加到参数元数据中
     Reflect.defineMetadata(`params`, existingParameters, target, propertyKey); // 更新参数元数据到目标对象的属性上
   };

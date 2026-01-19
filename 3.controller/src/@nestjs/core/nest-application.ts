@@ -12,8 +12,8 @@ class NestApplication {
 
   constructor(module: any) {
     this.module = module;
-    this.app.use(express.json());
-    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(express.json()); // 解析 JSON 格式的请求体
+    this.app.use(express.urlencoded({ extended: true })); // 解析 URL 编码的请求体
   }
 
   // 定义 use 方法，用于注册中间件
