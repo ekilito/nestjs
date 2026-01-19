@@ -1,4 +1,4 @@
-import { Controller, Get, Request, Req, Query, Headers } from '@nestjs/common';
+import { Controller, Get, Request, Req, Query, Headers, Session } from '@nestjs/common';
 import { Request as ExpressRequest } from 'express';
 
 // 使用 @Controller 装饰器定义 'users' 路由
@@ -37,5 +37,15 @@ export class UserController {
   handleHeaders(@Headers('accept') accept: string): string {
     console.log(accept);
     return `Header accept: ${accept}`;
+  }
+
+  @Get('session')
+  handleSession(@Session() session: any): string {
+    if (session.views) {
+      session.views++;
+    } else {
+      session.views = 1;
+    }
+    return `Number of views: ${session.views}`;
   }
 }

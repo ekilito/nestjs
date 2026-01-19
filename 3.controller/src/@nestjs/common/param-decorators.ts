@@ -14,3 +14,4 @@ export const Request = createParamDecorator('Request'); // 使用 createParamDec
 export const Req = createParamDecorator('Req');// 使用 createParamDecorator 创建 'Req' 参数装饰器
 export const Query = (queryKey?: string) => createParamDecorator(`Query`)(queryKey);
 export const Headers = (headerKey?: string) => createParamDecorator(`Headers`)(headerKey);
+export const Session = createParamDecorator('Session');
