@@ -51,7 +51,9 @@ class NestApplication {
             const args = this.resolveParams(controller, methodName, req, res, next);
             // 调用方法并获取结果
             const result = await method.call(controller, ...args);
-            res.send(result);
+            // 判断controller 的 methodName 方法里有没有使用Response/Res参数装饰器 用了任何一个则不发送
+            const responseMeta = this.getResponseMetadata(controller, methodName);
+            if (!responseMeta) return res.send(result);
           });
           // 记录日志：映射路由路径和 HTTP 方法
           Logger.log(`Mapped {${routPath}, ${httpMethod}} route`, 'RouterExplorer');
@@ -60,6 +62,11 @@ class NestApplication {
     }
     // 记录日志：Nest 应用程序成功启动
     Logger.log('Nest application successfully started', 'NestApplication');
+  }
+
+  private getResponseMetadata(instance: any, methodName: string): any {
+    const paramsMetadata = Reflect.getMetadata(`params`, instance, methodName) || [];
+    return paramsMetadata.filter(Boolean).find((param: any) => param.key === 'Res' || param.key === 'Response');
   }
 
   // 解析方法参数
@@ -85,6 +92,9 @@ class NestApplication {
           return data ? req.params[data] : req.params;
         case 'Body':
           return data ? req.body[data] : req.body;
+        case 'Res':
+        case 'Response':
+          return res;
         default:
           return null;
       }

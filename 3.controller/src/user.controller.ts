@@ -1,5 +1,5 @@
-import { Controller, Get, Request, Req, Query, Headers, Session, Ip, Param, Post, Body } from './@nestjs/common';
-import { Request as ExpressRequest } from 'express';
+import { Controller, Get, Request, Req, Query, Headers, Session, Ip, Param, Post, Body, Res, Response } from './@nestjs/common';
+import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 
 // 使用 @Controller 装饰器定义 'users' 路由
 @Controller('users')
@@ -72,5 +72,12 @@ export class UserController {
     console.log('createUserDto', createUserDto);
     console.log('username', username);
     return 'This action adds a new user';
+  }
+
+  @Get('res')
+  handleResponse(@Res() res: ExpressResponse, @Response() response: ExpressResponse): void {
+    console.log('res', res);
+    // console.log('response', response);
+    res.send('Custom response');
   }
 }

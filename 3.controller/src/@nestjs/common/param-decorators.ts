@@ -19,3 +19,5 @@ export const Session = createParamDecorator('Session');
 export const Ip = createParamDecorator('Ip');
 export const Param = (paramKey?: string) => createParamDecorator(`Param`)(paramKey);
 export const Body = (bodyKey?: string) => createParamDecorator(`Body`)(bodyKey);
+export const Res = createParamDecorator('Res');
+export const Response = createParamDecorator('Response');
