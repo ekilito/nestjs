@@ -81,8 +81,8 @@ class NestApplication {
             if (!responseMeta || (responseMeta.data?.passthrough)) {
               headers.forEach((header: { name: string; value: string }) => {
                 res.setHeader(header.name, header.value);
-                return res.send(result);
               });
+              res.send(result);
             }
           });
           // 记录日志：映射路由路径和 HTTP 方法
