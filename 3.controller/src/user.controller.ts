@@ -3,6 +3,7 @@ import {
   Redirect, Next, HttpCode, Header
 } from './@nestjs/common';
 import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
+import { UserDecorator } from './user-decorator';
 
 // 使用 @Controller 装饰器定义 'users' 路由
 @Controller('users')
@@ -114,6 +115,13 @@ export class UserController {
   // @Redirect('/users', 302)
   handleRedirect2(@Query('version') version: string) {
     return { url: `https://www.baidu.com/${version}`, statusCode: 301 };
+  }
+
+  @Get('customParamDecorator')
+  customParamDecorator(@UserDecorator('role') role, @UserDecorator() user) {
+    console.log('user', user)
+    console.log('role', role)
+    return user;
   }
 }
 

@@ -14,6 +14,10 @@ class NestApplication {
     this.module = module;
     this.app.use(express.json()); // 解析 JSON 格式的请求体
     this.app.use(express.urlencoded({ extended: true })); // 解析 URL 编码的请求体
+    this.app.use((req, res, next) => {
+      (req as any).user = { name: 'admin', role: 'admin' }
+      next()
+    })
   }
 
   // 定义 use 方法，用于注册中间件
@@ -102,6 +106,13 @@ class NestApplication {
     // 根据参数的索引排序并返回参数数组
     return paramsMetadata.map((param: any) => {
       const { key, data } = param;
+      const ctx = {
+        switchToHttp: () => ({
+          getRequest: () => req,
+          getResponse: () => res,
+          getNext: () => next,
+        }),
+      }
       switch (key) {
         case 'Request':
         case 'Req':
@@ -123,6 +134,8 @@ class NestApplication {
           return res;
         case 'Next':
           return next;
+        case 'DecoratorFactory':
+          return param.factory(data, ctx);
         default:
           return null;
       }
