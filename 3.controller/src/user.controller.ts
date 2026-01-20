@@ -1,6 +1,6 @@
 import {
   Controller, Get, Request, Req, Query, Headers, Session, Ip, Param, Post, Body, Res, Response,
-  Redirect, Next, HttpCode
+  Redirect, Next, HttpCode, Header
 } from './@nestjs/common';
 import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 
@@ -72,6 +72,8 @@ export class UserController {
 
   @Post('create')
   @HttpCode(200)
+  // 向后端发送一个响应头
+  @Header('Cache-Control', 'none')
   createUser(@Body() createUserDto, @Body('username') username): string {
     console.log('createUserDto', createUserDto);
     console.log('username', username);

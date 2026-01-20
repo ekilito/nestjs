@@ -38,3 +38,12 @@ export function HttpCode(statusCode: number): MethodDecorator {
     Reflect.defineMetadata('httpCode', statusCode, descriptor.value);
   };
 }
+
+// 响应头
+export function Header(name: string, value: string): MethodDecorator {
+  return (target, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+    const existingHeaders = Reflect.getMetadata('headers', descriptor.value) || [];
+    existingHeaders.push({ name, value });
+    Reflect.defineMetadata('headers', existingHeaders, descriptor.value);
+  };
+}
