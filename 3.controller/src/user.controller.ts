@@ -1,4 +1,7 @@
-import { Controller, Get, Request, Req, Query, Headers, Session, Ip, Param, Post, Body, Res, Response } from './@nestjs/common';
+import {
+  Controller, Get, Request, Req, Query, Headers, Session, Ip, Param, Post, Body, Res, Response,
+  Redirect, Next
+} from './@nestjs/common';
 import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 
 // 使用 @Controller 装饰器定义 'users' 路由
@@ -91,6 +94,23 @@ export class UserController {
     res.setHeader('Cache-Control-key', 'none');
     // 还是想返回一个值让 Nest 帮我们进行发送响应体操作
     return 'Custom response！！';
+  }
+
+  @Get('next')
+  next(@Next() next) {
+    console.log('next', next);
+    // next();
+  }
+
+  // 重定向
+  @Get('/redirect')
+  @Redirect('/users', 301)
+  handleRedirect(): void { }
+
+  @Get('redirect2')
+  // @Redirect('/users', 302)
+  handleRedirect2(@Query('version') version: string) {
+    return { url: `https://www.baidu.com/${version}`, statusCode: 301 };
   }
 }
 

@@ -21,3 +21,4 @@ export const Param = (paramKey?: string) => createParamDecorator(`Param`)(paramK
 export const Body = (bodyKey?: string) => createParamDecorator(`Body`)(bodyKey);
 export const Res = (options?: any) => createParamDecorator(`Res`)(options);
 export const Response = (options?: any) => createParamDecorator(`Response`)(options);
+export const Next = createParamDecorator('Next');

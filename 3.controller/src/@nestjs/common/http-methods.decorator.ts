@@ -23,3 +23,11 @@ export function Post(path: string = ''): MethodDecorator {
     Reflect.defineMetadata('method', 'POST', descriptor.value);
   };
 }
+
+// 重定向
+export function Redirect(url: string = '/', statusCode: number = 302): MethodDecorator {
+  return (target, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+    Reflect.defineMetadata('redirectUrl', url, descriptor.value);
+    Reflect.defineMetadata('redirectStatusCode', statusCode, descriptor.value);
+  };
+}

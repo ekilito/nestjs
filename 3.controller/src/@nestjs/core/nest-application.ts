@@ -41,6 +41,8 @@ class NestApplication {
 
         const pathMetadata = Reflect.getMetadata('path', method);  // 获取方法的路径元数据
         const httpMethod = Reflect.getMetadata('method', method); // 获取方法的 HTTP 方法元数据
+        const redirectUrl = Reflect.getMetadata('redirectUrl', method);
+        const redirectStatusCode = Reflect.getMetadata('redirectStatusCode', method);
         // 如果方法存在，则进行路由配置
         if (httpMethod) {
           // 组合路由路径
@@ -51,6 +53,16 @@ class NestApplication {
             const args = this.resolveParams(controller, methodName, req, res, next);
             // 调用方法并获取结果
             const result = await method.call(controller, ...args);
+
+            if (result && result.url) {
+              res.redirect(result.statusCode || 302, result.url);
+              return;
+            }
+            // 重定向到指定到 redirectUrl
+            if (redirectUrl) {
+              res.redirect(redirectStatusCode || 302, redirectUrl);
+              return;
+            }
             // 判断controller 的 methodName 方法里有没有使用Response/Res参数装饰器 用了任何一个则不发送
             const responseMeta = this.getResponseMetadata(controller, methodName);
             // 如果没有注入 Response/Res 参数装饰器，或者注入了但是传递了 passthrough 选项 都会由Nestjs 返回响应！
@@ -67,7 +79,7 @@ class NestApplication {
 
   private getResponseMetadata(instance: any, methodName: string): any {
     const paramsMetadata = Reflect.getMetadata(`params`, instance, methodName) || [];
-    return paramsMetadata.filter(Boolean).find((param: any) => param.key === 'Res' || param.key === 'Response');
+    return paramsMetadata.filter(Boolean).find((param: any) => param.key === 'Res' || param.key === 'Response' || param.key === 'Next');
   }
 
   // 解析方法参数
@@ -96,6 +108,8 @@ class NestApplication {
         case 'Res':
         case 'Response':
           return res;
+        case 'Next':
+          return next;
         default:
           return null;
       }
