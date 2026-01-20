@@ -1,6 +1,6 @@
 import {
   Controller, Get, Request, Req, Query, Headers, Session, Ip, Param, Post, Body, Res, Response,
-  Redirect, Next
+  Redirect, Next, HttpCode
 } from './@nestjs/common';
 import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 
@@ -71,6 +71,7 @@ export class UserController {
   }
 
   @Post('create')
+  @HttpCode(200)
   createUser(@Body() createUserDto, @Body('username') username): string {
     console.log('createUserDto', createUserDto);
     console.log('username', username);

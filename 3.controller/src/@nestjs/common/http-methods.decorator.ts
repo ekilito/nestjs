@@ -31,3 +31,10 @@ export function Redirect(url: string = '/', statusCode: number = 302): MethodDec
     Reflect.defineMetadata('redirectStatusCode', statusCode, descriptor.value);
   };
 }
+
+// httpCode
+export function HttpCode(statusCode: number): MethodDecorator {
+  return (target, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+    Reflect.defineMetadata('httpCode', statusCode, descriptor.value);
+  };
+}

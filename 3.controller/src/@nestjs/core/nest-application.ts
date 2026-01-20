@@ -43,6 +43,7 @@ class NestApplication {
         const httpMethod = Reflect.getMetadata('method', method); // 获取方法的 HTTP 方法元数据
         const redirectUrl = Reflect.getMetadata('redirectUrl', method);
         const redirectStatusCode = Reflect.getMetadata('redirectStatusCode', method);
+        const httpCode = Reflect.getMetadata('httpCode', method);
         // 如果方法存在，则进行路由配置
         if (httpMethod) {
           // 组合路由路径
@@ -62,6 +63,12 @@ class NestApplication {
             if (redirectUrl) {
               res.redirect(redirectStatusCode || 302, redirectUrl);
               return;
+            }
+            // 设置 HTTP 状态码
+            if (httpCode) {
+              res.status(httpCode);
+            } else if (httpMethod === 'POST') {
+              res.status(201);
             }
             // 判断controller 的 methodName 方法里有没有使用Response/Res参数装饰器 用了任何一个则不发送
             const responseMeta = this.getResponseMetadata(controller, methodName);
