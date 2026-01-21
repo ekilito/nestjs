@@ -4,5 +4,5 @@ const log = (value, context) => {
 
 @log
 class Person {
-
+  getName() { }
 }
