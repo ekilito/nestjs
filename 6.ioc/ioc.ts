@@ -8,8 +8,17 @@ function Injectable(): ClassDecorator {
 }
 
 @Injectable()
-class Engine {
+class Oil {
   start() {
+    console.log('Oil started');
+  }
+}
+
+@Injectable()
+class Engine {
+  constructor(private oil: Oil) { }
+  start() {
+    this.oil.start();
     console.log('Engine started');
   }
 }
@@ -49,7 +58,8 @@ class DIContainer {
 
 // 创建一个依赖注入的容器实例
 const container = new DIContainer();
-// 注册 Engine 和 Car 服务
+// 注册 Oil Engine 和 Car 服务
+container.register<Oil>('Oil', Oil);
 container.register<Engine>('Engine', Engine);
 container.register<Car>('Car', Car);
 
@@ -57,5 +67,6 @@ container.register<Car>('Car', Car);
 const car = container.resolve<Car>('Car');
 car.drive();
 
+// Oil started
 // Engine started
 // Car is driving
