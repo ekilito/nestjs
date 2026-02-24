@@ -1,7 +1,7 @@
 import {
   Controller, Get, Request, Req, Query, Headers, Session, Ip, Param, Post, Body, Res, Response,
   Redirect, Next, HttpCode, Header
-} from './@nestjs/common';
+} from '@nestjs/common';
 import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { UserDecorator } from './user-decorator';
 
