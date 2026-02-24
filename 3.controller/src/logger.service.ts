@@ -6,3 +6,13 @@ export class LoggerService {
     console.log('LoggerService', message)
   }
 }
+
+@Injectable()
+export class UseValueService {
+  // constructor(prefix: string) {
+  //   console.log('UseValueService', prefix)
+  // }
+  log(message) {
+    console.log('UseValueService', message)
+  }
+}

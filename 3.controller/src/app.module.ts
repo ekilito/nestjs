@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
-import { UserController } from './user.controller';
-import { LoggerService } from './logger.service';
+// import { UserController } from './user.controller';
+import { LoggerService, UseValueService } from './logger.service';
 
 @Module({
-  controllers: [AppController, UserController],
+  controllers: [AppController],
   providers: [
-    LoggerService
+    LoggerService,
+    // 这也是一个定义provide的方法
+    {
+      provide: 'StringToken', // 这是一个token，也称为标志，或者说令牌，也就是 provider的名字
+      useValue: new UseValueService() // 可以直接提供一个值
+    }
   ]
 })
 

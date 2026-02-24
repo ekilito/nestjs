@@ -4,11 +4,14 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import path from 'path';
 // 导入自定义的 Logger 模块
 import { Logger } from './logger';
+import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '@nestjs/common';
 
 class NestApplication {
 
   private readonly app: Express = express(); // 定义一个私有的 express 应用实例
   private readonly module: any;   // 定义一个私有的模块变量
+  // 此处保存全部的providers 提供者
+  private readonly providers = new Map()
 
   constructor(module: any) {
     this.module = module;
@@ -18,11 +21,50 @@ class NestApplication {
       (req as any).user = { name: 'admin', role: 'admin' }
       next()
     })
+    this.initProviders();
+  }
+
+  // 初始化提供者 注册 providers
+  initProviders() {
+    const providers = Reflect.getMetadata('providers', this.module) ?? [];
+    for (const provider of providers) {
+      if (provider.provide && provider.useClass) { // 如果 provider 是一个类
+        const dependencies = this.resolveDependencies(provider.useClass);
+        const classInstance = new provider.useClass(...dependencies); // 创建类的实例
+        this.providers.set(provider.provide, classInstance); // 把provider 的token和类的实例保存到this.providers里
+      } else if (provider.provide && provider.useValue) {
+        this.providers.set(provider.provide, provider.useValue); // 提供的是一个值，则不需要容器帮助实例化，直接使用此值注册就可以了
+      } else if (provider.provide && provider.useFactory) {
+        const inject = provider.inject ?? [];
+        const injectedValues = inject.map(this.getProviderByToken);
+        const value = provider.useFactory(...injectedValues);
+        this.providers.set(provider.provide, value);
+      } else {
+        const dependencies = this.resolveDependencies(provider);
+        this.providers.set(provider, new provider(...dependencies)); // 表示只提供了一个类，token是这个类，值是这个类的实例
+      }
+    }
+    console.log('providers', this.providers) // providers Map(2) { [class LoggerService] => LoggerService {}, 'StringToken' => UseValueService {} }
   }
 
   // 定义 use 方法，用于注册中间件
   use(middleware: (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => void) {
     this.app.use(middleware);
+  }
+
+  // 解析出控制器的依赖
+  private getProviderByToken = (injectedToken) => {
+    return this.providers.get(injectedToken) ?? injectedToken;
+  }
+  private resolveDependencies(Clazz) {
+    const injectedTokens = Reflect.getMetadata(INJECTED_TOKENS, Clazz) ?? []; // 获取类的注入令牌元数据
+    console.log('injectedTokens', injectedTokens) // injectedTokens [ <1 empty item>, 'StringToken' ]
+    const constructorParams = Reflect.getMetadata(DESIGN_PARAM_TYPES, Clazz) ?? []; // 获取类的构造函数参数类型元数据
+    console.log('constructorParams', constructorParams) // constructorParams [ [class LoggerService], [class UseValueService] ]
+    return constructorParams.map((param, index) => {
+      // 把每个param中的token默认转换成
+      return this.getProviderByToken(injectedTokens[index] ?? param);
+    });
   }
 
   // 初始化应用 
@@ -32,7 +74,8 @@ class NestApplication {
     Logger.log('AppModule dependencies initialized', 'InstanceLoader'); // 记录日志：应用模块依赖已初始化
 
     for (const Controller of controllers) {
-      const controller = new Controller(); // 创建每个控制器实例
+      const dependencies = this.resolveDependencies(Controller); // 解析出控制器的依赖
+      const controller = new Controller(...dependencies); // 创建每个控制器实例
       const prefix = Reflect.getMetadata('prefix', Controller) || '/';   // 获取控制器的路由前缀元数据，默认为 '/'
       // 开始解析路由
       Logger.log(`${Controller.name} {${prefix}}:`, 'RoutesResolver');
