@@ -21,10 +21,10 @@ export class AppController {
   // 使用 Get 装饰器标记 index 方法为 HTTP GET 路由处理程序
   @Get()
   index() {
-    this.loggerClassService.log('index');
-    this.loggerService.log('index');
-    this.useValueService.log('index');
-    this.useFactory.log('index');
+    if (this.loggerClassService) this.loggerClassService.log('index');
+    if (this.loggerService) this.loggerService.log('index');
+    if (this.useValueService) this.useValueService.log('index');
+    if (this.useFactory) this.useFactory.log('index');
     return 'Hello'
   }
 

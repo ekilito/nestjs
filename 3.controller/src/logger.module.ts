@@ -6,6 +6,10 @@ import { LoggerClassService, LoggerService, UseValueService, UseFactory } from '
       provide: 'SUFFIX', // 提供 token 为 'SUFFIX' 的值
       useValue: 'suffix'  // 值为 'suffix'
     },
+    // {
+    //   provide: 'prefix1', // 提供 FactoryToken 所需的 prefix1 依赖
+    //   useValue: 'prefix1-value'
+    // },
     LoggerClassService, // 这样定义的 provider，token值就是这个类的本身 是下面简写的形式 注入方式：直接通过类型注入 private loggerClassService: LoggerClassService
     {
       provide: LoggerService, // 明确指定 token 和要使用的类
@@ -21,6 +25,12 @@ import { LoggerClassService, LoggerService, UseValueService, UseFactory } from '
       inject: ['prefix1', 'SUFFIX'], // 指定依赖的其他 provider
       useFactory: (prefix1, suffix) => new UseFactory(prefix1, suffix) // 注入方式：使用 @Inject('FactoryToken')
     }
+  ],
+  exports: [
+    LoggerClassService,
+    LoggerService,
+    'StringToken',
+    'FactoryToken'
   ]
 })
 export class LoggerModule { }
