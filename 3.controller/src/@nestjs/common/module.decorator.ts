@@ -13,6 +13,9 @@ export interface ModuleMetadata {
 export function Module(metadata: ModuleMetadata): ClassDecorator {
   return (target: Function) => {
     Reflect.defineMetadata('isModule', true, target); // 标记这是一个模块
+    metadata.controllers?.forEach(controller => {
+      Reflect.defineMetadata('module', target, controller);
+    });
     // 使用 Reflect.defineMetadata 方法将 metadata.controllers 元数据定义到目标函数上，键为 'controllers'
     // 给模块类添加元数据 AppModule，元数据 controllers 值是 controllers数组[AppController]
     Reflect.defineMetadata('controllers', metadata.controllers, target);
@@ -21,5 +24,21 @@ export function Module(metadata: ModuleMetadata): ClassDecorator {
     Reflect.defineMetadata('providers', metadata.providers, target);
     Reflect.defineMetadata('exports', metadata.exports, target);
     Reflect.defineMetadata('imports', metadata.imports, target);
+  };
+}
+
+// 全局模块
+export function defineModule(providers, module) {
+  providers?.forEach(provider => {
+    if (provider instanceof Function) {
+      Reflect.defineMetadata('module', module, provider);
+    } else if (provider.useClass instanceof Function) {
+      Reflect.defineMetadata('module', module, provider.useClass);
+    }
+  });
+}
+export function Global(): ClassDecorator {
+  return (target: Function) => {
+    Reflect.defineMetadata('global', true, target);
   };
 }

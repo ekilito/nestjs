@@ -1,6 +1,7 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { LoggerService, UseValueService, UseFactory, LoggerClassService } from './logger.service'
 import { CommonService } from './common.service'
+import { OtherService } from './other.service'
 
 @Controller()
 export class AppController {
@@ -11,6 +12,7 @@ export class AppController {
     private loggerService: LoggerService, // 类型自动匹配
 
     private readonly commonService: CommonService,  // 注入 CommonService
+    private readonly otherService: OtherService,
 
     // 字符串 token - 需要 @Inject
     @Inject('StringToken') private useValueService: UseValueService,
@@ -30,6 +32,12 @@ export class AppController {
   common(): string {
     this.commonService.log('Hello from CommonService');  // 使用服务
     return 'common';
+  }
+
+  @Get('other')
+  other(): string {
+    this.otherService.log('Hello from otherService');
+    return 'other';
   }
 }
 

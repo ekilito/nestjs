@@ -4,11 +4,14 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import path from 'path';
 // 导入自定义的 Logger 模块
 import { Logger } from './logger';
-import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '@nestjs/common';
+import { INJECTED_TOKENS, DESIGN_PARAM_TYPES, defineModule } from '@nestjs/common';
 
 class NestApplication {
 
   private readonly app: Express = express(); // 定义一个私有的 express 应用实例
+  private readonly providerInstances = new Map(); // 在此处保存所有的provider 的实例 key 就是token，值就是类的实例或者值  
+  private readonly globalProviders = new Set();
+  private readonly moduleProviders = new Map(); // 记录每个模块里有哪些provider 的token
   private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
   private readonly providers = new Map()
@@ -30,7 +33,7 @@ class NestApplication {
     const imports = Reflect.getMetadata('imports', this.module) || [];  // 获取模块的导入元数据
     for (const importedModule of imports) {  // 遍历所有导入的模块
       // const importedProviders = Reflect.getMetadata('providers', importedModule) || [];   // 获取导入模块中的提供者元数据
-      this.registerProvidersFromModule(importedModule);
+      this.registerProvidersFromModule(importedModule, this.module);
       // for (const provider of importedProviders) { // 遍历并添加每个提供者
       //   this.addProvider(provider);
       // }
@@ -38,19 +41,24 @@ class NestApplication {
     // 2. 再处理当前模块的 providers
     const providers = Reflect.getMetadata('providers', this.module) || [];  // 获取当前模块的提供者元数据
     for (const provider of providers) {  // 遍历并添加每个提供者
-      this.addProvider(provider);
+      this.addProvider(provider, this.module);
     }
   }
 
-  private registerProvidersFromModule(module) {
+  private registerProvidersFromModule(module, ...parentModules) {
+    const global = Reflect.getMetadata('global', module);
     const providers = Reflect.getMetadata('providers', module) || [];
     const exports = Reflect.getMetadata('exports', module) || [];
     for (const exportToken of exports) {
       if (this.isModule(exportToken)) {
-        this.registerProvidersFromModule(exportToken)
+        this.registerProvidersFromModule(exportToken, module, ...parentModules)
       } else {
         const provider = providers.find(provider => provider === exportToken || provider.provide === exportToken);
-        if (provider) this.addProvider(provider);
+        if (provider) {
+          [module, ...parentModules].forEach(module => {
+            this.addProvider(provider, module, global);
+          });
+        }
       }
     }
   }
@@ -59,22 +67,32 @@ class NestApplication {
   }
 
   // 添加提供者
-  addProvider(provider) {
+  addProvider(provider, module, global = false) {
+    // 此providers代表module这个模块对应的provider的token集合
+    const providers = global ? this.globalProviders : (this.moduleProviders.get(module) || new Set());
+    if (!global && !this.moduleProviders.has(module)) {
+      this.moduleProviders.set(module, providers);
+    }
     // 如果提供者有provide和useClass属性
     if (provider.provide && provider.useClass) {
+      const injectToken = provider.provide || provider;
       const dependencies = this.resolveDependencies(provider.useClass);  // 解析依赖项
       const classInstance = new provider.useClass(...dependencies);   // 创建类实例
-      this.providers.set(provider.provide, classInstance);  // 将提供者添加到Map中
+      this.providerInstances.set(injectToken, classInstance);  // 将提供者添加到Map中
+      providers.add(injectToken);
     } else if (provider.provide && provider.useValue) { // 如果提供者有provide和useValue属性
-      this.providers.set(provider.provide, provider.useValue);   // 直接将值添加到Map中
+      providers.add(provider.provide);  // 直接将值添加到Map中
     } else if (provider.provide && provider.useFactory) { // 如果提供者有provide和useFactory属性
       const inject = provider.inject ?? [];
-      const injectedValues = inject.map(this.getProviderByToken);
+      const injectedValues = inject.map((inject) => this.getProviderByToken(inject, module));
       const value = provider.useFactory(...injectedValues);
-      this.providers.set(provider.provide, value);
+      this.providerInstances.set(provider.provide, value);
+      providers.add(provider.provide);
     } else { // 直接是类
       const dependencies = this.resolveDependencies(provider);
-      this.providers.set(provider, new provider(...dependencies));
+      const classInstance = new provider(...dependencies);
+      this.providerInstances.set(provider, classInstance);
+      providers.add(provider);
     }
   }
 
@@ -84,9 +102,16 @@ class NestApplication {
   }
 
   // 解析出控制器的依赖
-  private getProviderByToken = (injectedToken) => {
-    return this.providers.get(injectedToken) ?? injectedToken;
+  private getProviderByToken(injectedToken: any, module: any) {
+    // 如何通过token 在特定模块下找到对应的provider
+    // 先
+    if (this.globalProviders.has(injectedToken)) {
+      return this.providerInstances.get(injectedToken);
+    } else if (this.moduleProviders.get(module)?.has(injectedToken)) {
+      return this.providerInstances.get(injectedToken);
+    }
   }
+
   private resolveDependencies(Clazz) {
     const injectedTokens = Reflect.getMetadata(INJECTED_TOKENS, Clazz) ?? []; // 获取类的注入令牌元数据
     console.log('injectedTokens', injectedTokens) // injectedTokens [ <1 empty item>, 'StringToken' ]
@@ -94,7 +119,9 @@ class NestApplication {
     console.log('constructorParams', constructorParams) // constructorParams [ [class LoggerService], [class UseValueService] ]
     return constructorParams.map((param, index) => {
       // 把每个param中的token默认转换成
-      return this.getProviderByToken(injectedTokens[index] ?? param);
+      const module = Reflect.getMetadata('module', Clazz);
+      const injectedToken = injectedTokens[index] ?? param;
+      return this.getProviderByToken(injectedToken, module);
     });
   }
 
