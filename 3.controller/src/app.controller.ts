@@ -4,8 +4,12 @@ import { LoggerService, UseValueService, UseFactory, LoggerClassService } from '
 @Controller()
 export class AppController {
   constructor(
-    private loggerClassService: LoggerClassService,
-    private loggerService: LoggerService,
+
+    // 类 token - 直接注入
+    private loggerClassService: LoggerClassService, // 类型自动匹配
+    private loggerService: LoggerService, // 类型自动匹配
+
+    // 字符串 token - 需要 @Inject
     @Inject('StringToken') private useValueService: UseValueService,
     @Inject('FactoryToken') private useFactory: UseFactory,
   ) { }
@@ -19,3 +23,5 @@ export class AppController {
     return 'Hello'
   }
 }
+
+// 这种设计让 NestJS 的依赖注入非常灵活，可以根据不同场景选择合适的注册方式。
