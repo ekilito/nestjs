@@ -26,18 +26,38 @@ class NestApplication {
 
   // 初始化提供者
   private initProviders() {
+    // 1. 先处理导入的模块
     const imports = Reflect.getMetadata('imports', this.module) || [];  // 获取模块的导入元数据
     for (const importedModule of imports) {  // 遍历所有导入的模块
-      const importedProviders = Reflect.getMetadata('providers', importedModule) || [];   // 获取导入模块中的提供者元数据
-      for (const provider of importedProviders) { // 遍历并添加每个提供者
-        this.addProvider(provider);
-      }
+      // const importedProviders = Reflect.getMetadata('providers', importedModule) || [];   // 获取导入模块中的提供者元数据
+      this.registerProvidersFromModule(importedModule);
+      // for (const provider of importedProviders) { // 遍历并添加每个提供者
+      //   this.addProvider(provider);
+      // }
     }
+    // 2. 再处理当前模块的 providers
     const providers = Reflect.getMetadata('providers', this.module) || [];  // 获取当前模块的提供者元数据
     for (const provider of providers) {  // 遍历并添加每个提供者
       this.addProvider(provider);
     }
   }
+
+  private registerProvidersFromModule(module) {
+    const providers = Reflect.getMetadata('providers', module) || [];
+    const exports = Reflect.getMetadata('exports', module) || [];
+    for (const exportToken of exports) {
+      if (this.isModule(exportToken)) {
+        this.registerProvidersFromModule(exportToken)
+      } else {
+        const provider = providers.find(provider => provider === exportToken || provider.provide === exportToken);
+        if (provider) this.addProvider(provider);
+      }
+    }
+  }
+  isModule(injectToken) {
+    return injectToken && injectToken instanceof Function && Reflect.getMetadata('isModule', injectToken)
+  }
+
   // 添加提供者
   addProvider(provider) {
     // 如果提供者有provide和useClass属性
