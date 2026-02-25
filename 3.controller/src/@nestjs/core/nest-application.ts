@@ -24,27 +24,38 @@ class NestApplication {
     this.initProviders();
   }
 
-  // 初始化提供者 注册 providers
-  initProviders() {
-    const providers = Reflect.getMetadata('providers', this.module) ?? [];
-    for (const provider of providers) {
-      if (provider.provide && provider.useClass) { // 如果 provider 是一个类
-        const dependencies = this.resolveDependencies(provider.useClass);
-        const classInstance = new provider.useClass(...dependencies); // 创建类的实例
-        this.providers.set(provider.provide, classInstance); // 把provider 的token和类的实例保存到this.providers里
-      } else if (provider.provide && provider.useValue) {
-        this.providers.set(provider.provide, provider.useValue); // 提供的是一个值，则不需要容器帮助实例化，直接使用此值注册就可以了
-      } else if (provider.provide && provider.useFactory) {
-        const inject = provider.inject ?? [];
-        const injectedValues = inject.map(this.getProviderByToken);
-        const value = provider.useFactory(...injectedValues);
-        this.providers.set(provider.provide, value);
-      } else {
-        const dependencies = this.resolveDependencies(provider);
-        this.providers.set(provider, new provider(...dependencies)); // 表示只提供了一个类，token是这个类，值是这个类的实例
+  // 初始化提供者
+  private initProviders() {
+    const imports = Reflect.getMetadata('imports', this.module) || [];  // 获取模块的导入元数据
+    for (const importedModule of imports) {  // 遍历所有导入的模块
+      const importedProviders = Reflect.getMetadata('providers', importedModule) || [];   // 获取导入模块中的提供者元数据
+      for (const provider of importedProviders) { // 遍历并添加每个提供者
+        this.addProvider(provider);
       }
     }
-    console.log('providers', this.providers) // providers Map(2) { [class LoggerService] => LoggerService {}, 'StringToken' => UseValueService {} }
+    const providers = Reflect.getMetadata('providers', this.module) || [];  // 获取当前模块的提供者元数据
+    for (const provider of providers) {  // 遍历并添加每个提供者
+      this.addProvider(provider);
+    }
+  }
+  // 添加提供者
+  addProvider(provider) {
+    // 如果提供者有provide和useClass属性
+    if (provider.provide && provider.useClass) {
+      const dependencies = this.resolveDependencies(provider.useClass);  // 解析依赖项
+      const classInstance = new provider.useClass(...dependencies);   // 创建类实例
+      this.providers.set(provider.provide, classInstance);  // 将提供者添加到Map中
+    } else if (provider.provide && provider.useValue) { // 如果提供者有provide和useValue属性
+      this.providers.set(provider.provide, provider.useValue);   // 直接将值添加到Map中
+    } else if (provider.provide && provider.useFactory) { // 如果提供者有provide和useFactory属性
+      const inject = provider.inject ?? [];
+      const injectedValues = inject.map(this.getProviderByToken);
+      const value = provider.useFactory(...injectedValues);
+      this.providers.set(provider.provide, value);
+    } else { // 直接是类
+      const dependencies = this.resolveDependencies(provider);
+      this.providers.set(provider, new provider(...dependencies));
+    }
   }
 
   // 定义 use 方法，用于注册中间件

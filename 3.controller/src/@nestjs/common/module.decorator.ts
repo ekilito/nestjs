@@ -3,7 +3,9 @@ import 'reflect-metadata';
 // 模块的元数据 
 export interface ModuleMetadata {
   controllers?: Function[];
-  providers?: any[]
+  providers?: any[],
+  exports?: any[],
+  imports?: any[]
 }
 
 
@@ -16,5 +18,7 @@ export function Module(metadata: ModuleMetadata): ClassDecorator {
     // 给模块类AppModule 添加元数据 providers，值是 [LoggerService]
     // 在类上保存了一个providers的数组，表示给此模块注入的providers供应者
     Reflect.defineMetadata('providers', metadata.providers, target);
+    Reflect.defineMetadata('exports', metadata.exports, target);
+    Reflect.defineMetadata('imports', metadata.imports, target);
   };
 }
