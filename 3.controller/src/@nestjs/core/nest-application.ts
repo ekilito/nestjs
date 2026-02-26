@@ -12,12 +12,12 @@ class NestApplication {
   private readonly providerInstances = new Map(); // 在此处保存所有的provider 的实例 key 就是token，值就是类的实例或者值  
   private readonly globalProviders = new Set();
   private readonly moduleProviders = new Map(); // 记录每个模块里有哪些provider 的token
-  private readonly module: any;   // 定义一个私有的模块变量
+  // private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
-  private readonly providers = new Map()
+  // private readonly providers = new Map()
 
-  constructor(module: any) {
-    this.module = module;
+  constructor(protected readonly module) {
+    // this.module = module; // 这行可以注释掉，因为 protected readonly 已经自动赋值
     this.app.use(express.json()); // 解析 JSON 格式的请求体
     this.app.use(express.urlencoded({ extended: true })); // 解析 URL 编码的请求体
     this.app.use((req, res, next) => {
@@ -73,9 +73,12 @@ class NestApplication {
     if (!global && !this.moduleProviders.has(module)) {
       this.moduleProviders.set(module, providers);
     }
+    // 为了避免循环依赖，每次添加前可以做一个判断，如果Map中已经存在，则直接返回
+    // const injectToken = provider.provide || provider;
+    // if(this.providers.has(injectToken)) return
     // 如果提供者有provide和useClass属性
     if (provider.provide && provider.useClass) {
-      const injectToken = provider.provide || provider;
+      const injectToken = provider.provide || provider; // 获取要注册的provider的token
       const dependencies = this.resolveDependencies(provider.useClass);  // 解析依赖项
       const classInstance = new provider.useClass(...dependencies);   // 创建类实例
       this.providerInstances.set(injectToken, classInstance);  // 将提供者添加到Map中
