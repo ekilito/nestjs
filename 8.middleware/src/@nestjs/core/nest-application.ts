@@ -36,16 +36,18 @@ class NestApplication {
     this.module.prototype.configure?.(this); // this指向当前的NestApplication实例
   }
   apply(...middleware: (Function | any)[]): this {
-    this.middlewares.push(...middleware);
+    this.middlewares.push(...middleware); //把接收到的中间件放到中间件数组中，并且返回当前的实例
     return this;
   }
   forRoutes(...routes: any[]): this {
-    for (const route of routes) {
-      for (const middleware of this.middlewares) {
+    for (const route of routes) { // 遍历路径信息
+      for (const middleware of this.middlewares) { // 遍历中间件
         const { routePath, routeMethod } = this.normalizeRouteInfo(route);
         this.app.use(routePath, (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
           if ((routeMethod === RequestMethod.ALL || routeMethod === req.method)) {
-            const middlewareInstance = new middleware();
+            defineModule(this.module, middleware);
+            const dependencies = this.resolveDependencies(middleware);
+            const middlewareInstance = new middleware(...dependencies);
             middlewareInstance.use(req, res, next);
           } else {
             next();
@@ -55,6 +57,7 @@ class NestApplication {
     }
     return this;
   }
+  // 把route 格式化为标准对象，一个是路径，一个是请求 方法
   private normalizeRouteInfo(route) {
     let routePath = '';
     let routeMethod = RequestMethod.ALL;
