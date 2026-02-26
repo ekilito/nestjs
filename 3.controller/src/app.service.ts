@@ -4,7 +4,7 @@ import { Config } from './dynamicConfig.module';
 @Injectable()
 export class AppService {
   constructor(
-    @Inject('PREFIX') private readonly prefix: string,
+    @Inject('PREFIX') private readonly prefix: string, // 注入前缀
     @Inject('CONFIG') private readonly config: Config, // 依赖注入
   ) { }
 

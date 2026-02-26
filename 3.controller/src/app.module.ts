@@ -5,11 +5,11 @@ import { AppService } from './app.service';
 
 @Module({
   imports: [
-    DynamicConfigModule.forRoot()  // 动态模块
+    DynamicConfigModule.forRoot('456')  // 动态模块
   ],
-  controllers: [AppController],
-  providers: [AppService],
-  exports: [AppService]
+  controllers: [AppController], // 注册控制器
+  providers: [AppService], // 注册服务提供者
+  exports: [AppService] // 导出服务提供者
 })
 
 export class AppModule { }
