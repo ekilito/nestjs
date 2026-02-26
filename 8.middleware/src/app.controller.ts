@@ -1,6 +1,6 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 
-@Controller()
+@Controller('app') // 路由前缀
 export class AppController {
   @Get('config')
   getConfig(): string {

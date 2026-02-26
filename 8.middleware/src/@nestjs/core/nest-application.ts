@@ -15,6 +15,7 @@ class NestApplication {
   private readonly globalProviders = new Set(); // 此处存放着全局可用的提供者和token
   private readonly moduleProviders = new Map(); // 记录每个模块里有哪些provider 的token
   private readonly middlewares = []; // 存放中间件
+  private readonly excludedRoutes = []; // 存放排除的路由
   // private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
   // private readonly providers = new Map()
@@ -31,19 +32,40 @@ class NestApplication {
     this.initMiddlewares(); // 初始化中间件
   }
 
+  // 排除某些路由
+  exclude(...routes: any[]): this {
+    this.excludedRoutes.push(...routes);
+    return this;
+  }
+
   // 初始化中间件
   private initMiddlewares() {
     this.module.prototype.configure?.(this); // this指向当前的NestApplication实例
   }
+  // 应用中间件
   apply(...middleware: (Function | any)[]): this {
     this.middlewares.push(...middleware); //把接收到的中间件放到中间件数组中，并且返回当前的实例
     return this;
   }
+
+  // 判断是否排除了某个路由
+  private isExcluded(reqPath: string, method: RequestMethod): boolean {
+    return this.excludedRoutes.some(route => {
+      const { routePath, routeMethod } = this.normalizeRouteInfo(route);
+      return routePath === reqPath && (routeMethod === RequestMethod.ALL || routeMethod === method);
+    });
+  }
+
+  // 为指定的路由应用中间件
   forRoutes(...routes: any[]): this {
     for (const route of routes) { // 遍历路径信息
       for (const middleware of this.middlewares) { // 遍历中间件
         const { routePath, routeMethod } = this.normalizeRouteInfo(route);
         this.app.use(routePath, (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
+          if (this.isExcluded(req.originalUrl, req.method)) { // 判断是否排除了当前路由
+            return next();
+          }
+          // 判断当前路由是否匹配
           if ((routeMethod === RequestMethod.ALL || routeMethod === req.method)) {
             defineModule(this.module, middleware);
             const dependencies = this.resolveDependencies(middleware);
@@ -66,6 +88,8 @@ class NestApplication {
     } else if ('path' in route) {
       routePath = route.path;
       routeMethod = route.method ?? RequestMethod.ALL;
+    } else if (route instanceof Function) {
+      routePath = Reflect.getMetadata('prefix', route);
     }
     routePath = path.posix.join('/', routePath);
     return { routePath, routeMethod };

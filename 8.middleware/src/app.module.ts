@@ -19,7 +19,11 @@ export class AppModule implements NestModule {
     consumer
       .apply(LoggerMiddleware)
       // .forRoutes('config');
-      .forRoutes('ab*de'); // 路由通配符 匹配所有以ab开头de结尾的路由
-    //.forRoutes({ path: 'config', method: RequestMethod.GET })
+      // .forRoutes('ab*de'); // 路由通配符 匹配所有以ab开头de结尾的路由
+      //.forRoutes({ path: 'config', method: RequestMethod.GET })
+      .exclude(
+        { path: '/app/config', method: RequestMethod.GET }, // 排除对/config路径的GET请求
+      )
+      .forRoutes(AppController); // 匹配所有AppController控制器中的路由
   }
 }
