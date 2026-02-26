@@ -6,4 +6,9 @@ export class AppController {
   getConfig(): string {
     return `Config`;
   }
+
+  @Get('abcde')
+  abcde(): string {
+    return `abcde`;
+  }
 }

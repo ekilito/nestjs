@@ -18,7 +18,8 @@ export class AppModule implements NestModule {
     // 配置中间件 要针对/config 的路径应用 LoggerMiddleware中间件
     consumer
       .apply(LoggerMiddleware)
-      .forRoutes('config');
+      // .forRoutes('config');
+      .forRoutes('ab*de'); // 路由通配符 匹配所有以ab开头de结尾的路由
     //.forRoutes({ path: 'config', method: RequestMethod.GET })
   }
 }
