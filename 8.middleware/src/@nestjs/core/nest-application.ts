@@ -6,13 +6,15 @@ import path from 'path';
 import { Logger } from './logger';
 import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '@nestjs/common';
 import { defineModule } from '../common';
+import { RequestMethod } from '@nestjs/common/request-method.enum';
 
 class NestApplication {
 
   private readonly app: Express = express(); // 定义一个私有的 express 应用实例
   private readonly providerInstances = new Map(); // 在此处保存所有的provider 的实例 key 就是token，值就是类的实例或者值  
-  private readonly globalProviders = new Set();
+  private readonly globalProviders = new Set(); // 此处存放着全局可用的提供者和token
   private readonly moduleProviders = new Map(); // 记录每个模块里有哪些provider 的token
+  private readonly middlewares = []; // 存放中间件
   // private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
   // private readonly providers = new Map()
@@ -26,6 +28,44 @@ class NestApplication {
       next()
     })
     this.initProviders();
+    this.initMiddlewares(); // 初始化中间件
+  }
+
+  // 初始化中间件
+  private initMiddlewares() {
+    this.module.prototype.configure?.(this); // this指向当前的NestApplication实例
+  }
+  apply(...middleware: (Function | any)[]): this {
+    this.middlewares.push(...middleware);
+    return this;
+  }
+  forRoutes(...routes: any[]): this {
+    for (const route of routes) {
+      for (const middleware of this.middlewares) {
+        const { routePath, routeMethod } = this.normalizeRouteInfo(route);
+        this.app.use(routePath, (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
+          if ((routeMethod === RequestMethod.ALL || routeMethod === req.method)) {
+            const middlewareInstance = new middleware();
+            middlewareInstance.use(req, res, next);
+          } else {
+            next();
+          }
+        });
+      }
+    }
+    return this;
+  }
+  private normalizeRouteInfo(route) {
+    let routePath = '';
+    let routeMethod = RequestMethod.ALL;
+    if (typeof route === 'string') {
+      routePath = route;
+    } else if ('path' in route) {
+      routePath = route.path;
+      routeMethod = route.method ?? RequestMethod.ALL;
+    }
+    routePath = path.posix.join('/', routePath);
+    return { routePath, routeMethod };
   }
 
   // 初始化提供者
