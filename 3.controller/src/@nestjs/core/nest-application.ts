@@ -4,7 +4,8 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import path from 'path';
 // 导入自定义的 Logger 模块
 import { Logger } from './logger';
-import { INJECTED_TOKENS, DESIGN_PARAM_TYPES, defineModule } from '@nestjs/common';
+import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '@nestjs/common';
+import { defineModule } from '../common';
 
 class NestApplication {
 
@@ -31,12 +32,32 @@ class NestApplication {
   private initProviders() {
     // 1. 先处理导入的模块
     const imports = Reflect.getMetadata('imports', this.module) || [];  // 获取模块的导入元数据
-    for (const importedModule of imports) {  // 遍历所有导入的模块
-      // const importedProviders = Reflect.getMetadata('providers', importedModule) || [];   // 获取导入模块中的提供者元数据
-      this.registerProvidersFromModule(importedModule, this.module);
+    for (const importeModule of imports) {  // 遍历所有导入的模块
+      // const importedProviders = Reflect.getMetadata('providers', importeModule) || [];   // 获取导入模块中的提供者元数据
+      // this.registerProvidersFromModule(importeModule, this.module);
       // for (const provider of importedProviders) { // 遍历并添加每个提供者
       //   this.addProvider(provider);
       // }
+      // 如果导入的模块有module属性，说明这是一个动态模块
+      if (importeModule.module) {
+        const { module, providers, controllers, exports } = importeModule;
+        // 进行合并
+        const oldControllers = Reflect.getMetadata('controllers', module);
+        const newControllers = [...(oldControllers ?? []), ...(controllers ?? [])]
+        defineModule(module, newControllers);
+        const oldProviders = Reflect.getMetadata('providers', module);
+        const newProviders = [...(oldProviders ?? []), ...(providers ?? [])]
+        defineModule(module, newProviders);
+        const oldExports = Reflect.getMetadata('exports', module);
+        const newExports = [...(oldExports ?? []), ...(exports ?? [])]
+        // defineModule(module, newExports);
+        Reflect.defineMetadata('controllers', newControllers, module);
+        Reflect.defineMetadata('providers', newProviders, module);
+        Reflect.defineMetadata('exports', newExports, module);
+        this.registerProvidersFromModule(module, this.module);
+      } else {
+        this.registerProvidersFromModule(importeModule, this.module);
+      }
     }
     // 2. 再处理当前模块的 providers
     const providers = Reflect.getMetadata('providers', this.module) || [];  // 获取当前模块的提供者元数据
@@ -84,6 +105,7 @@ class NestApplication {
       this.providerInstances.set(injectToken, classInstance);  // 将提供者添加到Map中
       providers.add(injectToken);
     } else if (provider.provide && provider.useValue) { // 如果提供者有provide和useValue属性
+      this.providerInstances.set(provider.provide, provider.useValue);  // 将值存储到实例Map中
       providers.add(provider.provide);  // 直接将值添加到Map中
     } else if (provider.provide && provider.useFactory) { // 如果提供者有provide和useFactory属性
       const inject = provider.inject ?? [];
