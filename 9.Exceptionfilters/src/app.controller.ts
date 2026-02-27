@@ -1,14 +1,21 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
 
-@Controller('app') // 路由前缀
+@Controller()
 export class AppController {
-  @Get('config')
-  getConfig(): string {
-    return `Config`;
-  }
+  @Get('exception')
+  exception() {
+    // 当异常是未识别的（既不是 HttpException 也不是继承自 HttpException 的类）
+    // throw new Error('exception');
+    // {"statusCode":500,"message":"Internal server error"}
 
-  @Get('abcde')
-  abcde(): string {
-    return `abcde`;
+    // throw new HttpException('Forbidden', HttpStatus.FORBIDDEN); 
+    // {"statusCode":403,"message":"Forbidden"}
+
+    // 自定义异常
+    throw new HttpException({
+      status: HttpStatus.FORBIDDEN,
+      error: 'This is a custom message',
+    }, HttpStatus.FORBIDDEN);
   }
+  // {"status":403,"error":"This is a custom message"}
 }
