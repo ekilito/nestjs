@@ -4,9 +4,9 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import path from 'path';
 // 导入自定义的 Logger 模块
 import { Logger } from './logger';
-import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '@nestjs/common';
+import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '../common/constants';
 import { defineModule } from '../common';
-import { RequestMethod } from '@nestjs/common/request-method.enum';
+import { RequestMethod } from '@nestjs/common';
 
 class NestApplication {
 
