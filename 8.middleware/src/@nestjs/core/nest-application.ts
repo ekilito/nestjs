@@ -14,7 +14,7 @@ class NestApplication {
   private readonly providerInstances = new Map(); // 在此处保存所有的provider 的实例 key 就是token，值就是类的实例或者值  
   private readonly globalProviders = new Set(); // 此处存放着全局可用的提供者和token
   private readonly moduleProviders = new Map(); // 记录每个模块里有哪些provider 的token
-  private readonly middlewares = []; // 存放中间件
+  private readonly middlewares = []; // 存放中间件(类 实例 函数中间件)
   private readonly excludedRoutes = []; // 存放排除的路由
   // private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
@@ -67,10 +67,17 @@ class NestApplication {
           }
           // 判断当前路由是否匹配
           if ((routeMethod === RequestMethod.ALL || routeMethod === req.method)) {
-            defineModule(this.module, middleware);
-            const dependencies = this.resolveDependencies(middleware);
-            const middlewareInstance = new middleware(...dependencies);
-            middlewareInstance.use(req, res, next);
+            // 此处middleware 可能是一个类 实例 或者 函数中间件
+            if (typeof middleware === 'function' && middleware.prototype && 'use' in middleware.prototype) {
+              defineModule(this.module, middleware);
+              const dependencies = this.resolveDependencies(middleware);
+              const middlewareInstance = new middleware(...dependencies);
+              middlewareInstance.use(req, res, next);
+            } else if (typeof middleware === 'function') { // 函数中间件
+              middleware(req, res, next);
+            } else {
+              next();
+            }
           } else {
             next();
           }
