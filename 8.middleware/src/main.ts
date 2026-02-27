@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import session from 'express-session';
+import { logger } from './logger.function.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,6 +13,8 @@ async function bootstrap() {
       maxAge: 24 * 60 * 60 * 1000 // 会话的过期时间，单位毫秒
     }
   }))
+  // 注册全局的中间件，可以绑定到每个注册的路由上
+  app.use(logger);
   await app.listen(3000);
 }
 bootstrap();
