@@ -4,6 +4,7 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import path from 'path';
 // 导入自定义的 Logger 模块
 import { Logger } from './logger';
+import { GlobalHttpExceptionFilter, ArgumentsHost, ExceptionFilter } from '@nestjs/common'
 import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '../common/constants';
 import { defineModule } from '../common';
 import { RequestMethod } from '@nestjs/common';
@@ -16,6 +17,7 @@ class NestApplication {
   private readonly moduleProviders = new Map(); // 记录每个模块里有哪些provider 的token
   private readonly middlewares = []; // 存放中间件(类 实例 函数中间件)
   private readonly excludedRoutes = []; // 存放排除的路由
+  private readonly defaultGlobalHttpExceptionFilter = new GlobalHttpExceptionFilter() // 默认的全局异常过滤器
   // private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
   // private readonly providers = new Map()
@@ -255,35 +257,47 @@ class NestApplication {
           const routPath = path.posix.join('/', prefix, pathMetadata);
           // 注册路由及其处理函数
           this.app[httpMethod.toLowerCase()](routPath, async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
-            // 解析方法参数
-            const args = this.resolveParams(controller, methodName, req, res, next);
-            // 调用方法并获取结果
-            const result = await method.call(controller, ...args);
+            const host: ArgumentsHost = {
+              switchToHttp: () => ({
+                getRequest: () => req,
+                getResponse: () => res,
+                getNext: () => next,
+              }),
+            };
+            try {
+              // 解析方法参数
+              const args = this.resolveParams(controller, methodName, req, res, next);
+              // 调用方法并获取结果
+              const result = await method.call(controller, ...args);
 
-            if (result && result.url) {
-              res.redirect(result.statusCode || 302, result.url);
-              return;
+              if (result && result.url) {
+                res.redirect(result.statusCode || 302, result.url);
+                return;
+              }
+              // 重定向到指定到 redirectUrl
+              if (redirectUrl) {
+                res.redirect(redirectStatusCode || 302, redirectUrl);
+                return;
+              }
+              // 设置 HTTP 状态码
+              if (httpCode) {
+                res.status(httpCode);
+              } else if (httpMethod === 'POST') {
+                res.status(201);
+              }
+              // 判断controller 的 methodName 方法里有没有使用Response/Res参数装饰器 用了任何一个则不发送
+              const responseMeta = this.getResponseMetadata(controller, methodName);
+              // 如果没有注入 Response/Res 参数装饰器，或者注入了但是传递了 passthrough 选项 都会由Nestjs 返回响应！
+              if (!responseMeta || (responseMeta.data?.passthrough)) {
+                headers.forEach((header: { name: string; value: string }) => {
+                  res.setHeader(header.name, header.value);
+                });
+                res.send(result);
+              }
+            } catch (error) {
+              await this.callExceptionFilters(error, host);
             }
-            // 重定向到指定到 redirectUrl
-            if (redirectUrl) {
-              res.redirect(redirectStatusCode || 302, redirectUrl);
-              return;
-            }
-            // 设置 HTTP 状态码
-            if (httpCode) {
-              res.status(httpCode);
-            } else if (httpMethod === 'POST') {
-              res.status(201);
-            }
-            // 判断controller 的 methodName 方法里有没有使用Response/Res参数装饰器 用了任何一个则不发送
-            const responseMeta = this.getResponseMetadata(controller, methodName);
-            // 如果没有注入 Response/Res 参数装饰器，或者注入了但是传递了 passthrough 选项 都会由Nestjs 返回响应！
-            if (!responseMeta || (responseMeta.data?.passthrough)) {
-              headers.forEach((header: { name: string; value: string }) => {
-                res.setHeader(header.name, header.value);
-              });
-              res.send(result);
-            }
+
           });
           // 记录日志：映射路由路径和 HTTP 方法
           Logger.log(`Mapped {${routPath}, ${httpMethod}} route`, 'RouterExplorer');
@@ -340,6 +354,19 @@ class NestApplication {
           return null;
       }
     });
+  }
+
+  // 调用异常过滤器
+  private async callExceptionFilters(error: any, host: ArgumentsHost) {
+    const allFilters = [this.defaultGlobalHttpExceptionFilter];
+    for (const filter of allFilters) {
+      const target = filter.constructor;
+      const exceptions = Reflect.getMetadata('catch', target) || [];
+      if (exceptions.length == 0 || exceptions.some((exception: any) => error instanceof exception)) {
+        filter.catch(error, host);
+        break;
+      }
+    }
   }
 
   // 启动 HTTP 服务器
