@@ -368,20 +368,6 @@ class NestApplication {
     });
   }
 
-  // // 调用异常过滤器
-  // private async callExceptionFilters(error: any, host: ArgumentsHost, filters: ExceptionFilter[] = []) {
-  //   // 获取所有异常过滤器 分别是 方法级、控制器级、全局级和默认全局异常过滤器
-  //   const allFilters = [...filters, ...this.globalHttpExceptionFilters, this.defaultGlobalHttpExceptionFilter];
-  //   for (const filter of allFilters) {
-  //     const target = filter.constructor;
-  //     const exceptions = Reflect.getMetadata('catch', target) || []; // 取出此异常过滤器关心的异步或者说要处理的异常
-  //     // 如果异常过滤器关心的所有异常长度为0，则表示它关心所有异常，或者它关心的异常中包含当前异常
-  //     if (exceptions.length == 0 || exceptions.some((exception: any) => error instanceof exception)) {
-  //       filter.catch(error, host);
-  //       break;
-  //     }
-  //   }
-  // }
   getFilterInstance(filter) {
     if (filter instanceof Function) {
       const dependencies = this.resolveDependencies(filter);
