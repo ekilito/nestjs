@@ -17,7 +17,8 @@ export function Module(metadata: ModuleMetadata): ClassDecorator {
     Reflect.defineMetadata('controllers', metadata.controllers, target);
     // 给模块类AppModule 添加元数据 providers，值是 [LoggerService]
     // 在类上保存了一个providers的数组，表示给此模块注入的providers供应者
-    defineModule(target, metadata.providers ?? []);
+    // target 就是module
+    defineModule(target, (metadata.providers ?? []).map(provider => provider.useClass).filter(Boolean));
     Reflect.defineMetadata('providers', metadata.providers, target);
     Reflect.defineMetadata('exports', metadata.exports, target);
     Reflect.defineMetadata('imports', metadata.imports, target);

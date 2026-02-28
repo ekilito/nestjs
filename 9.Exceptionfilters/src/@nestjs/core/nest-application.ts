@@ -6,6 +6,7 @@ import path from 'path';
 import { Logger } from './logger';
 import { GlobalHttpExceptionFilter, ArgumentsHost, ExceptionFilter } from '@nestjs/common'
 import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '../common/constants';
+import { APP_FILTER } from '@nestjs/core';
 import { defineModule } from '../common';
 import { RequestMethod } from '@nestjs/common';
 
@@ -27,6 +28,7 @@ class NestApplication {
     // this.module = module; // 这行可以注释掉，因为 protected readonly 已经自动赋值
     this.app.use(express.json()); // 解析 JSON 格式的请求体
     this.app.use(express.urlencoded({ extended: true })); // 解析 URL 编码的请求体
+    // defineModule(this.module, [this.defaultGlobalHttpExceptionFilter]);
     this.app.use((req, res, next) => {
       (req as any).user = { name: 'admin', role: 'admin' }
       next()
@@ -177,9 +179,11 @@ class NestApplication {
     // 如果提供者有provide和useClass属性
     if (provider.provide && provider.useClass) {
       const injectToken = provider.provide || provider; // 获取要注册的provider的token
+      // 为 useClass 设置模块元数据，以便 resolveDependencies 能够正确获取模块引用
+      Reflect.defineMetadata('module', module, provider.useClass);
       const dependencies = this.resolveDependencies(provider.useClass);  // 解析依赖项
       const classInstance = new provider.useClass(...dependencies);   // 创建类实例
-      this.providerInstances.set(injectToken, classInstance);  // 将提供者添加到Map中
+      this.providerInstances.set(injectToken, classInstance);  //将提供者添加到Map中
       providers.add(injectToken);
     } else if (provider.provide && provider.useValue) { // 如果提供者有provide和useValue属性
       this.providerInstances.set(provider.provide, provider.useValue);  // 将值存储到实例Map中
@@ -206,24 +210,28 @@ class NestApplication {
   // 解析出控制器的依赖
   private getProviderByToken(injectedToken: any, module: any) {
     // 如何通过token 在特定模块下找到对应的provider
-    // 先
     if (this.globalProviders.has(injectedToken)) {
       return this.providerInstances.get(injectedToken);
     } else if (this.moduleProviders.get(module)?.has(injectedToken)) {
       return this.providerInstances.get(injectedToken);
     }
+    return undefined;
   }
 
   private resolveDependencies(Clazz) {
     const injectedTokens = Reflect.getMetadata(INJECTED_TOKENS, Clazz) ?? []; // 获取类的注入令牌元数据
+    console.log('Resolving dependencies for:', Clazz.name);
     console.log('injectedTokens', injectedTokens) // injectedTokens [ <1 empty item>, 'StringToken' ]
     const constructorParams = Reflect.getMetadata(DESIGN_PARAM_TYPES, Clazz) ?? []; // 获取类的构造函数参数类型元数据
     console.log('constructorParams', constructorParams) // constructorParams [ [class LoggerService], [class UseValueService] ]
     return constructorParams.map((param, index) => {
-      // 把每个param中的token默认转换成
+      //把param中的token默认转换成
       const module = Reflect.getMetadata('module', Clazz);
       const injectedToken = injectedTokens[index] ?? param;
-      return this.getProviderByToken(injectedToken, module);
+      console.log('Looking up dependency:', injectedToken, 'for param index:', index);
+      const value = this.getProviderByToken(injectedToken, module);
+      console.log('Dependency value:', value);
+      return value;
     });
   }
 
@@ -242,6 +250,7 @@ class NestApplication {
 
       const controllerPrototype = Reflect.getPrototypeOf(controller);// 获取控制器的原型对象
       const controllerFilters = Reflect.getMetadata('filters', Controller) || []; // 获取控制器的异常过滤器元数据
+      defineModule(this.module, controllerFilters);
 
       // 遍历控制器原型对象上的所有方法名
       for (const methodName of Object.getOwnPropertyNames(controllerPrototype)) {
@@ -254,6 +263,7 @@ class NestApplication {
         const httpCode = Reflect.getMetadata('httpCode', method);
         const headers = Reflect.getMetadata('headers', method) || [];
         const methodFilters = Reflect.getMetadata('filters', method) || []; // 获取方法上绑定的异常过滤器数组
+        defineModule(this.module, methodFilters);
         // 如果方法存在，则进行路由配置
         if (httpMethod) {
           // 组合路由路径
@@ -299,7 +309,7 @@ class NestApplication {
                 res.send(result);
               }
             } catch (error) {
-              await this.callExceptionFilters(error, host, filters);
+              await this.callExceptionFilters(error, host, methodFilters, controllerFilters);
             }
 
           });
@@ -360,16 +370,36 @@ class NestApplication {
     });
   }
 
-  // 调用异常过滤器
-  private async callExceptionFilters(error: any, host: ArgumentsHost, filters: ExceptionFilter[] = []) {
-    // 获取所有异常过滤器 分别是 方法级、控制器级、全局级和默认全局异常过滤器
-    const allFilters = [...filters, ...this.globalHttpExceptionFilters, this.defaultGlobalHttpExceptionFilter];
+  // // 调用异常过滤器
+  // private async callExceptionFilters(error: any, host: ArgumentsHost, filters: ExceptionFilter[] = []) {
+  //   // 获取所有异常过滤器 分别是 方法级、控制器级、全局级和默认全局异常过滤器
+  //   const allFilters = [...filters, ...this.globalHttpExceptionFilters, this.defaultGlobalHttpExceptionFilter];
+  //   for (const filter of allFilters) {
+  //     const target = filter.constructor;
+  //     const exceptions = Reflect.getMetadata('catch', target) || []; // 取出此异常过滤器关心的异步或者说要处理的异常
+  //     // 如果异常过滤器关心的所有异常长度为0，则表示它关心所有异常，或者它关心的异常中包含当前异常
+  //     if (exceptions.length == 0 || exceptions.some((exception: any) => error instanceof exception)) {
+  //       filter.catch(error, host);
+  //       break;
+  //     }
+  //   }
+  // }
+  getFilterInstance(filter) {
+    if (filter instanceof Function) {
+      const dependencies = this.resolveDependencies(filter);
+      console.log('dependencies', dependencies);
+      return new filter(...dependencies);
+    }
+    return filter;
+  }
+
+  private callExceptionFilters(error, host, methodFilters, controllerFilters) {
+    const allFilters = [...methodFilters, ...controllerFilters, ...this.globalHttpExceptionFilters, this.defaultGlobalHttpExceptionFilter];
     for (const filter of allFilters) {
-      const target = filter.constructor;
-      const exceptions = Reflect.getMetadata('catch', target) || []; // 取出此异常过滤器关心的异步或者说要处理的异常
-      // 如果异常过滤器关心的所有异常长度为0，则表示它关心所有异常，或者它关心的异常中包含当前异常
-      if (exceptions.length == 0 || exceptions.some((exception: any) => error instanceof exception)) {
-        filter.catch(error, host);
+      let filterInstance = this.getFilterInstance(filter);
+      const exceptions = Reflect.getMetadata('catch', filterInstance.constructor) ?? [];
+      if (exceptions.length === 0 || exceptions.some(exception => error instanceof exception)) {
+        filterInstance.catch(error, host)
         break;
       }
     }
@@ -377,14 +407,27 @@ class NestApplication {
 
   // 使用全局异常过滤器
   useGlobalFilters(...filters: ExceptionFilter[]): void {
+    defineModule(this.module, filters.filter(filter => filter instanceof Function));
     this.globalHttpExceptionFilters.push(...filters);
+  }
+
+  // 初始化全局异常过滤器
+  private initGlobalFilters() {
+    const providers = Reflect.getMetadata('providers', this.module) || [];
+    for (const provider of providers) {
+      if (provider.provide === APP_FILTER) { // 如果提供者是全局异常过滤器
+        const instance = this.getProviderByToken(APP_FILTER, this.module);
+        this.useGlobalFilters(instance);
+      }
+    }
   }
 
   // 启动 HTTP 服务器
   async listen(port: number) {
     // 初始化应用
     await this.init();
-    // 调用 express 实例的 listen 方法启动一个 HTTP 服务器，监听 port 端口
+    this.initGlobalFilters(); // 初始化全局的过滤器
+    //调 express 实例的 listen 方法启动一个 HTTP 服务器，监听 port端口
     this.app.listen(port, () => {
       // 记录日志：应用正在运行
       Logger.log(`Application is running on: http://localhost:${port}`, 'NestApplication');

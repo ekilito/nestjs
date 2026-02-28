@@ -1,9 +1,13 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, Inject } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 @Catch(HttpException) // 指定这个过滤器只捕获HttpException类型的异常！
 export class CustomExceptionFilter implements ExceptionFilter {
+  constructor(@Inject('PREFIX') private readonly prefix: string) { // 通过构造函数注入前缀
+
+  }
   catch(exception: HttpException, host: ArgumentsHost) { // exception：被捕获的异常对象，类型为HttpException host：ArgumentsHost对象，提供访问请求上下文的方法
+    console.log('prefix:', this.prefix)
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>(); // 获取响应对象
     const request = ctx.getRequest<Request>();
