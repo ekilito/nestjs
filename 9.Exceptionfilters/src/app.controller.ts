@@ -1,5 +1,5 @@
-import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
-import { ForbiddenException } from './forbidden.exception'; // 自定义异常
+import { Controller, Get, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
+import { ForbiddenException } from './forbidden.exception';
 
 @Controller()
 export class AppController {
@@ -23,5 +23,12 @@ export class AppController {
   @Get('custom')
   custom() {
     throw new ForbiddenException();
+  }
+
+  // 内置异常
+  @Get('bad-request')
+  badRequest() {
+    throw new BadRequestException('Something bad happened', 'Some error description');
+    // {"message":"Something bad happened","error":"Some error description","statusCode":400}
   }
 }
