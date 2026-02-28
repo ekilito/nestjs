@@ -87,6 +87,7 @@ class NestApplication {
         });
       }
     }
+    this.middlewares.length = 0;
     return this;
   }
   // 把route 格式化为标准对象，一个是路径，一个是请求 方法
