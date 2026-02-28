@@ -18,6 +18,7 @@ class NestApplication {
   private readonly middlewares = []; // 存放中间件(类 实例 函数中间件)
   private readonly excludedRoutes = []; // 存放排除的路由
   private readonly defaultGlobalHttpExceptionFilter = new GlobalHttpExceptionFilter() // 默认的全局异常过滤器
+  private readonly globalHttpExceptionFilters: ExceptionFilter[] = []; // 存放着所有的全局异常过滤器
   // private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
   // private readonly providers = new Map()
@@ -240,6 +241,7 @@ class NestApplication {
       Logger.log(`${Controller.name} {${prefix}}:`, 'RoutesResolver');
 
       const controllerPrototype = Reflect.getPrototypeOf(controller);// 获取控制器的原型对象
+      const controllerFilters = Reflect.getMetadata('filters', Controller) || []; // 获取控制器的异常过滤器元数据
 
       // 遍历控制器原型对象上的所有方法名
       for (const methodName of Object.getOwnPropertyNames(controllerPrototype)) {
@@ -251,10 +253,12 @@ class NestApplication {
         const redirectStatusCode = Reflect.getMetadata('redirectStatusCode', method);
         const httpCode = Reflect.getMetadata('httpCode', method);
         const headers = Reflect.getMetadata('headers', method) || [];
+        const methodFilters = Reflect.getMetadata('filters', method) || []; // 获取方法上绑定的异常过滤器数组
         // 如果方法存在，则进行路由配置
         if (httpMethod) {
           // 组合路由路径
           const routPath = path.posix.join('/', prefix, pathMetadata);
+          const filters = [...controllerFilters, ...methodFilters]; // 合并控制器和方法的异常过滤器
           // 注册路由及其处理函数
           this.app[httpMethod.toLowerCase()](routPath, async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
             const host: ArgumentsHost = {
@@ -295,7 +299,7 @@ class NestApplication {
                 res.send(result);
               }
             } catch (error) {
-              await this.callExceptionFilters(error, host);
+              await this.callExceptionFilters(error, host, filters);
             }
 
           });
@@ -357,16 +361,23 @@ class NestApplication {
   }
 
   // 调用异常过滤器
-  private async callExceptionFilters(error: any, host: ArgumentsHost) {
-    const allFilters = [this.defaultGlobalHttpExceptionFilter];
+  private async callExceptionFilters(error: any, host: ArgumentsHost, filters: ExceptionFilter[] = []) {
+    // 获取所有异常过滤器 分别是 方法级、控制器级、全局级和默认全局异常过滤器
+    const allFilters = [...filters, ...this.globalHttpExceptionFilters, this.defaultGlobalHttpExceptionFilter];
     for (const filter of allFilters) {
       const target = filter.constructor;
-      const exceptions = Reflect.getMetadata('catch', target) || [];
+      const exceptions = Reflect.getMetadata('catch', target) || []; // 取出此异常过滤器关心的异步或者说要处理的异常
+      // 如果异常过滤器关心的所有异常长度为0，则表示它关心所有异常，或者它关心的异常中包含当前异常
       if (exceptions.length == 0 || exceptions.some((exception: any) => error instanceof exception)) {
         filter.catch(error, host);
         break;
       }
     }
+  }
+
+  // 使用全局异常过滤器
+  useGlobalFilters(...filters: ExceptionFilter[]): void {
+    this.globalHttpExceptionFilters.push(...filters);
   }
 
   // 启动 HTTP 服务器

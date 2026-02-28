@@ -16,3 +16,4 @@ export * from './http-exception.filter';
 export * from './http-methods.decorator';
 export * from './http-exception';
 export * from './http-status.enum';
+export * from './use-filters.decorator';
