@@ -279,7 +279,8 @@ class NestApplication {
             };
             try {
               // 解析方法参数
-              const args = this.resolveParams(controller, methodName, req, res, next);
+              const args = await this.resolveParams(controller, methodName, req, res, next, host);
+              //console.log('args', args) // args [ 200 ]
               // 调用方法并获取结果
               const result = await method.call(controller, ...args);
 
@@ -327,46 +328,65 @@ class NestApplication {
   }
 
   // 解析方法参数
-  private resolveParams(instance: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: Function): any[] {
+  private async resolveParams(instance: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: Function, host): Promise<any[]> {
     // 获取参数元数据
-    const paramsMetadata = Reflect.getMetadata(`params`, instance, methodName) || [];
+    const paramsMetaData = Reflect.getMetadata(`params`, instance, methodName) || [];
     // 根据参数的索引排序并返回参数数组
-    return paramsMetadata.map((param: any) => {
-      const { key, data } = param;
-      const ctx = {
-        switchToHttp: () => ({
-          getRequest: () => req,
-          getResponse: () => res,
-          getNext: () => next,
-        }),
-      }
+    return Promise.all(paramsMetaData.map(async (paramMetaData) => {
+      const { key, data, factory, pipes } = paramMetaData;
+      let value;
       switch (key) {
         case 'Request':
         case 'Req':
-          return req;
+          value = req;
+          break;
         case 'Query':
-          return data ? req.query[data] : req.query;
+          value = data ? req.query[data] : req.query;
+          break;
         case 'Headers':
-          return data ? req.headers[data] : req.headers;
+          value = data ? req.headers[data] : req.headers;
+          break;
         case 'Session':
-          return req.session;
+          value = req.session;
+          break;
         case 'Ip':
-          return req.ip;
+          value = req.ip;
+          break;
         case 'Param':
-          return data ? req.params[data] : req.params;
+          value = data ? req.params[data] : req.params;
+          break;
         case 'Body':
-          return data ? req.body[data] : req.body;
+          value = data ? req.body[data] : req.body;
+          break;
         case 'Res':
         case 'Response':
-          return res;
+          value = res;
+          break;
         case 'Next':
-          return next;
+          value = next;
+          break;
         case 'DecoratorFactory':
-          return param.factory(data, ctx);
+          value = factory(data, host);
+          break;
         default:
-          return null;
+          value = null;
+          break;
       }
-    });
+      for (const pipe of [...pipes]) {
+        const pipeInstance = await this.resolvePipe(pipe);
+        value = await pipeInstance.transform(value, { type: key, data });
+      }
+      return value;
+    }))
+  }
+
+  // 解析管道
+  private async resolvePipe(pipe: any): Promise<any> {
+    if (typeof pipe === 'function') {
+      const dependencies = this.resolveDependencies(pipe);
+      return new pipe(...dependencies);
+    }
+    return pipe;
   }
 
   // // 调用异常过滤器
