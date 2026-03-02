@@ -9,6 +9,8 @@ import {
   DefaultValuePipe, // 将查询参数转换为默认值
 } from '@nestjs/common'
 
+import { CustomPipe } from './custom.pipe';
+
 enum UserRole {
   Admin = 'Admin',
   User = 'User',
@@ -51,5 +53,10 @@ export class AppController {
   @Get('default')
   getDefault(@Query('name', new DefaultValuePipe('Guest')) name: string): string {
     return `Hello, ${name}`;
+  }
+
+  @Get('custom/:value')
+  getCustom(@Param('value', CustomPipe) value: any): string {
+    return `The custom value is ${value}`;
   }
 }
