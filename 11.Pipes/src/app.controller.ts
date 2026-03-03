@@ -12,6 +12,8 @@ import {
 import { CustomPipe } from './custom.pipe';
 import { CreateCatDto, createCatSchema } from './create-cat.dto';
 import { ZodValidationPipe } from './zod-validation.pipe';
+import { CreateUserDto } from './create-user.dto';
+import { ClassValidationPipe } from './class-validation.pipe';
 
 enum UserRole {
   Admin = 'Admin',
@@ -68,5 +70,11 @@ export class AppController {
   async createCat(@Body() createCatDto: CreateCatDto): Promise<string> {
     console.log('Create Cat DTO:', createCatDto);
     return 'This action adds a new cat';
+  }
+
+  @Post('user/create')
+  async userCreate(@Body(new ClassValidationPipe()) createUserDto: CreateUserDto) {
+    console.log('createUserDto', createUserDto);
+    return 'This action adds a new user';
   }
 }

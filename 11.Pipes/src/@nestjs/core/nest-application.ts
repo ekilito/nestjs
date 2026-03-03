@@ -336,7 +336,7 @@ class NestApplication {
     const paramsMetaData = Reflect.getMetadata(`params`, instance, methodName) || [];
     // 根据参数的索引排序并返回参数数组
     return Promise.all(paramsMetaData.map(async (paramMetaData) => {
-      const { key, data, factory, pipes: paramPipes } = paramMetaData;
+      const { key, data, factory, pipes: paramPipes, metatype } = paramMetaData;
       let value;
       switch (key) {
         case 'Request':
@@ -378,7 +378,7 @@ class NestApplication {
       for (const pipe of [...pipes, ...paramPipes]) {
         const pipeInstance = await this.resolvePipe(pipe);
         const type = key === DECORATOR_FACTORY ? 'custom' : key.toLowerCase();
-        value = await pipeInstance.transform(value, { type, data });
+        value = await pipeInstance.transform(value, { type, data, metatype });
       }
       return value;
     }))
