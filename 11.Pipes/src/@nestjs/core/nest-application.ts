@@ -6,7 +6,7 @@ import path from 'path';
 import { Logger } from './logger';
 import { GlobalHttpExceptionFilter, ArgumentsHost, ExceptionFilter, PipeTransform } from '@nestjs/common'
 import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '../common/constants';
-import { APP_FILTER, DECORATOR_FACTORY } from '@nestjs/core';
+import { APP_FILTER, DECORATOR_FACTORY, APP_PIPE } from '@nestjs/core';
 import { defineModule } from '../common';
 import { RequestMethod } from '@nestjs/common';
 
@@ -446,8 +446,20 @@ class NestApplication {
     }
   }
 
+  // 使用全局管道
   useGlobalPipes(...pipes: PipeTransform[]): void {
     this.globalPipes.push(...pipes);
+  }
+
+  // 初始化全局管道
+  private initGlobalPipes() {
+    const providers = Reflect.getMetadata('providers', this.module) || [];
+    for (const provider of providers) {
+      if (provider.provide === APP_PIPE) {
+        const instance = this.getProviderByToken(APP_PIPE, this.module);
+        this.useGlobalPipes(instance);
+      }
+    }
   }
 
   // 启动 HTTP 服务器
@@ -455,6 +467,7 @@ class NestApplication {
     this.initProviders();
     this.initMiddlewares(); // 初始化中间件
     this.initGlobalFilters(); // 初始化全局的过滤器
+    await this.initGlobalPipes();
     // 初始化应用
     await this.init();
     //调 express 实例的 listen 方法启动一个 HTTP 服务器，监听 port端口
