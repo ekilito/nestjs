@@ -4,9 +4,9 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import path from 'path';
 // 导入自定义的 Logger 模块
 import { Logger } from './logger';
-import { GlobalHttpExceptionFilter, ArgumentsHost, ExceptionFilter } from '@nestjs/common'
+import { GlobalHttpExceptionFilter, ArgumentsHost, ExceptionFilter, PipeTransform } from '@nestjs/common'
 import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '../common/constants';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, DECORATOR_FACTORY } from '@nestjs/core';
 import { defineModule } from '../common';
 import { RequestMethod } from '@nestjs/common';
 
@@ -249,6 +249,7 @@ class NestApplication {
 
       const controllerPrototype = Reflect.getPrototypeOf(controller);// 获取控制器的原型对象
       const controllerFilters = Reflect.getMetadata('filters', Controller) || []; // 获取控制器的异常过滤器元数据
+      const controllerPipes = Reflect.getMetadata('pipes', Controller) || []; // 获取控制器的管道元数据
       defineModule(this.module, controllerFilters);
 
       // 遍历控制器原型对象上的所有方法名
@@ -262,60 +263,62 @@ class NestApplication {
         const httpCode = Reflect.getMetadata('httpCode', method);
         const headers = Reflect.getMetadata('headers', method) || [];
         const methodFilters = Reflect.getMetadata('filters', method) || []; // 获取方法上绑定的异常过滤器数组
+        const methodPipes = Reflect.getMetadata('pipes', method) || []; // 获取方法上绑定的管道数组
         defineModule(this.module, methodFilters);
+        const pipes = [...controllerPipes, ...methodPipes];
+        if (!httpMethod) continue;
         // 如果方法存在，则进行路由配置
-        if (httpMethod) {
-          // 组合路由路径
-          const routPath = path.posix.join('/', prefix, pathMetadata);
-          const filters = [...controllerFilters, ...methodFilters]; // 合并控制器和方法的异常过滤器
-          // 注册路由及其处理函数
-          this.app[httpMethod.toLowerCase()](routPath, async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
-            const host: ArgumentsHost = {
-              switchToHttp: () => ({
-                getRequest: () => req,
-                getResponse: () => res,
-                getNext: () => next,
-              }),
-            };
-            try {
-              // 解析方法参数
-              const args = await this.resolveParams(controller, methodName, req, res, next, host);
-              //console.log('args', args) // args [ 200 ]
-              // 调用方法并获取结果
-              const result = await method.call(controller, ...args);
+        // 组合路由路径
+        const routPath = path.posix.join('/', prefix, pathMetadata);
+        const filters = [...controllerFilters, ...methodFilters]; // 合并控制器和方法的异常过滤器
+        // 注册路由及其处理函数
+        this.app[httpMethod.toLowerCase()](routPath, async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
+          const host: ArgumentsHost = {
+            switchToHttp: () => ({
+              getRequest: () => req,
+              getResponse: () => res,
+              getNext: () => next,
+            }),
+          };
+          try {
+            // 解析方法参数
+            const args = await this.resolveParams(controller, methodName, req, res, next, host, pipes);
+            //console.log('args', args) // args [ 200 ]
+            // 调用方法并获取结果
+            const result = await method.call(controller, ...args);
 
-              if (result && result.url) {
-                res.redirect(result.statusCode || 302, result.url);
-                return;
-              }
-              // 重定向到指定到 redirectUrl
-              if (redirectUrl) {
-                res.redirect(redirectStatusCode || 302, redirectUrl);
-                return;
-              }
-              // 设置 HTTP 状态码
-              if (httpCode) {
-                res.status(httpCode);
-              } else if (httpMethod === 'POST') {
-                res.status(201);
-              }
-              // 判断controller 的 methodName 方法里有没有使用Response/Res参数装饰器 用了任何一个则不发送
-              const responseMeta = this.getResponseMetadata(controller, methodName);
-              // 如果没有注入 Response/Res 参数装饰器，或者注入了但是传递了 passthrough 选项 都会由Nestjs 返回响应！
-              if (!responseMeta || (responseMeta.data?.passthrough)) {
-                headers.forEach((header: { name: string; value: string }) => {
-                  res.setHeader(header.name, header.value);
-                });
-                res.send(result);
-              }
-            } catch (error) {
-              await this.callExceptionFilters(error, host, methodFilters, controllerFilters);
+            if (result && result.url) {
+              res.redirect(result.statusCode || 302, result.url);
+              return;
             }
+            // 重定向到指定到 redirectUrl
+            if (redirectUrl) {
+              res.redirect(redirectStatusCode || 302, redirectUrl);
+              return;
+            }
+            // 设置 HTTP 状态码
+            if (httpCode) {
+              res.status(httpCode);
+            } else if (httpMethod === 'POST') {
+              res.status(201);
+            }
+            // 判断controller 的 methodName 方法里有没有使用Response/Res参数装饰器 用了任何一个则不发送
+            const responseMeta = this.getResponseMetadata(controller, methodName);
+            // 如果没有注入 Response/Res 参数装饰器，或者注入了但是传递了 passthrough 选项 都会由Nestjs 返回响应！
+            if (!responseMeta || (responseMeta.data?.passthrough)) {
+              headers.forEach((header: { name: string; value: string }) => {
+                res.setHeader(header.name, header.value);
+              });
+              res.send(result);
+            }
+          } catch (error) {
+            await this.callExceptionFilters(error, host, methodFilters, controllerFilters);
+          }
 
-          });
-          // 记录日志：映射路由路径和 HTTP 方法
-          Logger.log(`Mapped {${routPath}, ${httpMethod}} route`, 'RouterExplorer');
-        }
+        });
+        // 记录日志：映射路由路径和 HTTP 方法
+        Logger.log(`Mapped {${routPath}, ${httpMethod}} route`, 'RouterExplorer');
+
       }
     }
     // 记录日志：Nest 应用程序成功启动
@@ -328,12 +331,12 @@ class NestApplication {
   }
 
   // 解析方法参数
-  private async resolveParams(instance: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: Function, host): Promise<any[]> {
+  private async resolveParams(instance: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: Function, host, pipes: PipeTransform[]): Promise<any[]> {
     // 获取参数元数据
     const paramsMetaData = Reflect.getMetadata(`params`, instance, methodName) || [];
     // 根据参数的索引排序并返回参数数组
     return Promise.all(paramsMetaData.map(async (paramMetaData) => {
-      const { key, data, factory, pipes } = paramMetaData;
+      const { key, data, factory, pipes: paramPipes } = paramMetaData;
       let value;
       switch (key) {
         case 'Request':
@@ -365,16 +368,17 @@ class NestApplication {
         case 'Next':
           value = next;
           break;
-        case 'DecoratorFactory':
+        case DECORATOR_FACTORY:
           value = factory(data, host);
           break;
         default:
           value = null;
           break;
       }
-      for (const pipe of [...pipes]) {
+      for (const pipe of [...pipes, ...paramPipes]) {
         const pipeInstance = await this.resolvePipe(pipe);
-        value = await pipeInstance.transform(value, { type: key, data });
+        const type = key === DECORATOR_FACTORY ? 'custom' : key.toLowerCase();
+        value = await pipeInstance.transform(value, { type, data });
       }
       return value;
     }))

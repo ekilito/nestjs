@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Param, Query,
+  Controller, Get, Param, Query, Body, UsePipes, Post,
   ParseIntPipe, // 将字符串参数转换为整数
   ParseFloatPipe, // 将字符串参数转换为浮点数
   ParseBoolPipe, // 将字符串参数转换为布尔值
@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common'
 
 import { CustomPipe } from './custom.pipe';
+import { CreateCatDto, createCatSchema } from './create-cat.dto';
+import { ZodValidationPipe } from './zod-validation.pipe';
 
 enum UserRole {
   Admin = 'Admin',
@@ -58,5 +60,13 @@ export class AppController {
   @Get('custom/:value')
   getCustom(@Param('value', CustomPipe) value: any): string {
     return `The custom value is ${value}`;
+  }
+
+  @Post('cats')
+  //应用 ZodValidationPipe 管道，使用 createCatSchema 进行数据验证
+  @UsePipes(new ZodValidationPipe(createCatSchema))
+  async createCat(@Body() createCatDto: CreateCatDto): Promise<string> {
+    console.log('Create Cat DTO:', createCatDto);
+    return 'This action adds a new cat';
   }
 }
