@@ -20,6 +20,7 @@ class NestApplication {
   private readonly excludedRoutes = []; // 存放排除的路由
   private readonly defaultGlobalHttpExceptionFilter = new GlobalHttpExceptionFilter() // 默认的全局异常过滤器
   private readonly globalHttpExceptionFilters: ExceptionFilter[] = []; // 存放着所有的全局异常过滤器
+  private readonly globalPipes: PipeTransform[] = []; // 存放着所有的全局管道
   // private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
   // private readonly providers = new Map()
@@ -375,7 +376,7 @@ class NestApplication {
           value = null;
           break;
       }
-      for (const pipe of [...pipes, ...paramPipes]) {
+      for (const pipe of [...this.globalPipes, ...pipes, ...paramPipes]) {
         const pipeInstance = await this.resolvePipe(pipe);
         const type = key === DECORATOR_FACTORY ? 'custom' : key.toLowerCase();
         value = await pipeInstance.transform(value, { type, data, metatype });
@@ -443,6 +444,10 @@ class NestApplication {
         this.useGlobalFilters(instance);
       }
     }
+  }
+
+  useGlobalPipes(...pipes: PipeTransform[]): void {
+    this.globalPipes.push(...pipes);
   }
 
   // 启动 HTTP 服务器

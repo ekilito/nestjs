@@ -77,4 +77,10 @@ export class AppController {
     console.log('createUserDto', createUserDto);
     return 'This action adds a new user';
   }
+
+  @Post('users/create/global')
+  async createGlobalUser(@Body() createUserDto: CreateUserDto): Promise<string> {
+    console.log('Global Create User DTO:', createUserDto);
+    return 'This action adds a new user globally';
+  }
 }
