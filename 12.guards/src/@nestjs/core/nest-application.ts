@@ -6,7 +6,7 @@ import path from 'path';
 import { Logger } from './logger';
 import { GlobalHttpExceptionFilter, ArgumentsHost, ExceptionFilter, PipeTransform } from '@nestjs/common'
 import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '../common/constants';
-import { APP_FILTER, DECORATOR_FACTORY, APP_PIPE, FORBIDDEN_MESSAGE } from '@nestjs/core';
+import { APP_FILTER, DECORATOR_FACTORY, APP_PIPE, FORBIDDEN_MESSAGE, APP_GUARD } from '@nestjs/core';
 import { defineModule } from '../common';
 import { RequestMethod } from '@nestjs/common';
 import { Reflector } from './reflector';
@@ -24,6 +24,7 @@ class NestApplication {
   private readonly defaultGlobalHttpExceptionFilter = new GlobalHttpExceptionFilter() // 默认的全局异常过滤器
   private readonly globalHttpExceptionFilters: ExceptionFilter[] = []; // 存放着所有的全局异常过滤器
   private readonly globalPipes: PipeTransform[] = []; // 存放着所有的全局管道
+  private readonly globalGuards: CanActivate[] = []; // 存放着所有的全局守卫
   // private readonly module: any;   // 定义一个私有的模块变量
   // 此处保存全部的providers 提供者
   // private readonly providers = new Map()
@@ -297,7 +298,7 @@ class NestApplication {
         const methodGuards = Reflect.getMetadata('guards', method) || []; // 获取方法上绑定的守卫数组
         defineModule(this.module, methodFilters);
         const pipes = [...controllerPipes, ...methodPipes];
-        const guards = [...controllerGuards, ...methodGuards];
+        const guards = [...this.globalGuards, ...controllerGuards, ...methodGuards];
         if (!httpMethod) continue;
         // 如果方法存在，则进行路由配置
         // 组合路由路径
@@ -499,12 +500,28 @@ class NestApplication {
     }
   }
 
+  // 初始化全局守卫
+  private initGlobalGuards() {
+    const providers = Reflect.getMetadata('providers', this.module) || [];
+    for (const provider of providers) {
+      if (provider.provide === APP_GUARD) {
+        const instance = this.getProviderByToken(APP_GUARD, this.module);
+        this.useGlobalGuards(instance);
+      }
+    }
+  }
+  // 使用全局守卫
+  useGlobalGuards(...guards: CanActivate[]): void {
+    this.globalGuards.push(...guards);
+  }
+
   // 启动 HTTP 服务器
   async listen(port: number) {
     this.initProviders();
     this.initMiddlewares(); // 初始化中间件
     this.initGlobalFilters(); // 初始化全局的过滤器
     await this.initGlobalPipes();
+    await this.initGlobalGuards();
     // 初始化应用
     await this.init();
     //调 express 实例的 listen 方法启动一个 HTTP 服务器，监听 port端口
