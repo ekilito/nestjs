@@ -11,6 +11,7 @@ export class AuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
 
     // 从处理程序的元数据中获取角色信息
+    // const roles = Reflect.getMetadata('roles', context.getHandler()); ==
     const roles = this.reflector.get<string[]>('roles', context.getHandler());
     // console.log('roles:', roles) // roles: [ 'admin' ]
 

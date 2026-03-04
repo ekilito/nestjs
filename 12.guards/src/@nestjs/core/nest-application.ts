@@ -6,9 +6,12 @@ import path from 'path';
 import { Logger } from './logger';
 import { GlobalHttpExceptionFilter, ArgumentsHost, ExceptionFilter, PipeTransform } from '@nestjs/common'
 import { INJECTED_TOKENS, DESIGN_PARAM_TYPES } from '../common/constants';
-import { APP_FILTER, DECORATOR_FACTORY, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, DECORATOR_FACTORY, APP_PIPE, FORBIDDEN_MESSAGE } from '@nestjs/core';
 import { defineModule } from '../common';
 import { RequestMethod } from '@nestjs/common';
+import { Reflector } from './reflector';
+import { CanActivate, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext } from '@nestjs/common';
 
 class NestApplication {
 
@@ -107,8 +110,14 @@ class NestApplication {
     return { routePath, routeMethod };
   }
 
+  // 添加核心提供者
+  private addCoreProviders() {
+    this.addProvider(Reflector, this.module, true);
+  }
+
   // 初始化提供者
   private initProviders() {
+    this.addCoreProviders();
     // 1. 先处理导入的模块
     const imports = Reflect.getMetadata('imports', this.module) || [];  // 获取模块的导入元数据
     for (const importeModule of imports) {  // 遍历所有导入的模块
@@ -235,6 +244,25 @@ class NestApplication {
     });
   }
 
+  // 获取守卫实例
+  private getGuardInstance(guard: CanActivate | Function): CanActivate {
+    if (typeof guard === 'function') {
+      const dependencies = this.resolveDependencies(guard);
+      return new (guard as any)(...dependencies);
+    }
+    return guard as CanActivate;
+  }
+  // 调用守卫
+  private async callGuards(guards: CanActivate[], context: ExecutionContext) {
+    for (const guard of guards) {
+      const guardInstance = this.getGuardInstance(guard);
+      const canActivate = await guardInstance.canActivate(context);
+      if (!canActivate) {
+        throw new ForbiddenException(FORBIDDEN_MESSAGE);
+      }
+    }
+  }
+
   // 初始化应用 
   async init() { // 取出模块里所有的控制器，然后做好路由配置
 
@@ -251,6 +279,7 @@ class NestApplication {
       const controllerPrototype = Reflect.getPrototypeOf(controller);// 获取控制器的原型对象
       const controllerFilters = Reflect.getMetadata('filters', Controller) || []; // 获取控制器的异常过滤器元数据
       const controllerPipes = Reflect.getMetadata('pipes', Controller) || []; // 获取控制器的管道元数据
+      const controllerGuards = Reflect.getMetadata('guards', Controller) || []; // 获取控制器的守卫元数据
       defineModule(this.module, controllerFilters);
 
       // 遍历控制器原型对象上的所有方法名
@@ -265,8 +294,10 @@ class NestApplication {
         const headers = Reflect.getMetadata('headers', method) || [];
         const methodFilters = Reflect.getMetadata('filters', method) || []; // 获取方法上绑定的异常过滤器数组
         const methodPipes = Reflect.getMetadata('pipes', method) || []; // 获取方法上绑定的管道数组
+        const methodGuards = Reflect.getMetadata('guards', method) || []; // 获取方法上绑定的守卫数组
         defineModule(this.module, methodFilters);
         const pipes = [...controllerPipes, ...methodPipes];
+        const guards = [...controllerGuards, ...methodGuards];
         if (!httpMethod) continue;
         // 如果方法存在，则进行路由配置
         // 组合路由路径
@@ -281,7 +312,13 @@ class NestApplication {
               getNext: () => next,
             }),
           };
+          const context: ExecutionContext = {
+            ...host,
+            getClass: () => Controller,
+            getHandler: () => method,
+          }
           try {
+            await this.callGuards(guards, context); // 调用守卫
             // 解析方法参数
             const args = await this.resolveParams(controller, methodName, req, res, next, host, pipes);
             //console.log('args', args) // args [ 200 ]
