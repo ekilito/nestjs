@@ -1,17 +1,26 @@
-// 引入 reflect-metadata 库，提供元数据反射的能力
 import 'reflect-metadata';
-// 定义一个 Reflector 类
+import { SetMetadata } from '@nestjs/common';
+
 export class Reflector {
-  // get 方法，用于获取元数据
-  // T 是泛型，表示返回值的类型，可以是任意类型
-  // metadataKey 是元数据的键
-  // target 是目标对象，可以是类或类的原型
-  // key 是可选参数，表示目标对象上的具体属性
+  // 定义 get 方法，用于获取元数据
   get<T extends any>(metadataKey: any, target: any, key?: string): T {
-    // 如果传入了 key 参数，则获取 target 对象上 key 属性的元数据
-    // 否则，获取 target 对象的元数据
+    // 如果 key 存在，从 target 的 key 上获取元数据，否则从 target 上获取元数据
     return key
-      ? Reflect.getMetadata(metadataKey, target, key)  // 获取 target 对象上 key 属性的元数据
-      : Reflect.getMetadata(metadataKey, target);      // 获取 target 对象的元数据
+      ? Reflect.getMetadata(metadataKey, target, key)
+      : Reflect.getMetadata(metadataKey, target);
+  }
+
+  // 静态方法 createDecorator，用于创建装饰器
+  static createDecorator<T = any>() {
+    // 定义装饰器函数
+    function decoratorFn(metadataValue: T) {
+      // 返回装饰器函数
+      return (target: object, key?: string | symbol, descriptor?: TypedPropertyDescriptor<any>) => {
+        // 使用 SetMetadata 设置元数据
+        SetMetadata(decoratorFn, metadataValue)(target, key, descriptor);
+      };
+    }
+    // 返回装饰器函数
+    return decoratorFn;
   }
 }
