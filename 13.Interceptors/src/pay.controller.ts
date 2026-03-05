@@ -1,4 +1,4 @@
-import { Get, Controller, UseInterceptors } from "@nestjs/common";
+import { Get, Controller, UseInterceptors, BadRequestException } from "@nestjs/common";
 import { Logging1Interceptor } from "./logging1.interceptor";
 import { Logging2Interceptor } from "./logging2.interceptor";
 import { Logging3Interceptor } from "./logger3.interceptor";
@@ -21,5 +21,11 @@ export class PayController {
     console.log('null...');
     return null;
     // return {}
+  }
+
+  @Get('error')
+  async error() {
+    console.log('error...');
+    throw new BadRequestException('error');
   }
 }
