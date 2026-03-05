@@ -15,4 +15,11 @@ export class PayController {
     console.log('pay...');
     return 'pay'
   }
+
+  @Get('null')
+  async null() {
+    console.log('null...');
+    return null;
+    // return {}
+  }
 }
