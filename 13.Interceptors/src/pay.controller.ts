@@ -4,6 +4,7 @@ import { Logging2Interceptor } from "./logging2.interceptor";
 import { Logging3Interceptor } from "./logger3.interceptor";
 import { Logging4Interceptor } from "./logger4.interceptor";
 import { CacheInterceptor } from './cache.interceptor';
+import { TimeoutInterceptor } from './timeout.interceptor';
 
 @Controller('pay')
 @UseInterceptors(Logging3Interceptor)
@@ -35,5 +36,11 @@ export class PayController {
   async cache() {
     console.log('cache...');
     return 'cache';
+  }
+
+  @Get('timeout')
+  @UseInterceptors(TimeoutInterceptor)
+  async timeout() {
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
 }
