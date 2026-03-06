@@ -1,5 +1,5 @@
 import { Controller, Get, Post, UseInterceptors, UploadedFile, FileTypeValidator, MaxFileSizeValidator, ParseFilePipe, UploadedFiles } from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor, FileFieldsInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { FileSizeValidationPipe } from './pipes/file-size-validation.pipe';
 @Controller('upload')
@@ -36,6 +36,7 @@ export class UploadController {
     console.log(files);
     return { message: 'Files uploaded successfully' };
   }
+
   // 多字段文件上传接口，允许同时上传不同类型的文件 
   @Post('fileFields')
   // FileFieldsInterceptor 的特点：
@@ -51,6 +52,14 @@ export class UploadController {
     avatar?: Express.Multer.File[], // 头像文件数组（因为 maxCount=1，所以数组长度最多为 1）
     background?: Express.Multer.File[] // 背景文件数组（因为 maxCount=1，所以数组长度最多为 1）
   }) {
+    console.log(files);
+    return { message: 'successfully' };
+  }
+
+  @Post('anyFiles')
+  // AnyFilesInterceptor: 允许上传任意类型的文件，不限制文件数量和类型 允许上传任意数量、任意字段名的文件
+  @UseInterceptors(AnyFilesInterceptor())
+  anyFiles(@UploadedFiles() files: Array<Express.Multer.File>) {
     console.log(files);
     return { message: 'successfully' };
   }
