@@ -1,5 +1,5 @@
-import { Controller, Post, UseInterceptors, UploadedFile, FileTypeValidator, MaxFileSizeValidator, ParseFilePipe } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Post, UseInterceptors, UploadedFile, FileTypeValidator, MaxFileSizeValidator, ParseFilePipe, UploadedFiles } from '@nestjs/common';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { FileSizeValidationPipe } from './pipes/file-size-validation.pipe';
 
@@ -15,15 +15,11 @@ export class UploadController {
   @Post('file-validator')
   @UseInterceptors(FileInterceptor('file'))
   fileValidator(
-    // 上传文件的参数装饰器
-    // 第一个参数是 ParseFilePipe 实例，用于验证上传文件的大小和类型
-    // 第二个参数是文件字段的名称，这里是 'file'
     @UploadedFile(
-      // ParseFilePipe 是一个文件验证管道，它会在文件被接收后、进入控制器方法前进行验证。如果验证失败，会自动返回相应的错误响应。
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 }), // 限制上传文件的最大大小
-          new FileTypeValidator({ fileType: 'image/png' }), // 限制上传文件的 MIME 类型
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 }),
+          new FileTypeValidator({ fileType: 'image/png' }),
         ],
       }),
     )
@@ -32,4 +28,14 @@ export class UploadController {
     return { message: 'fileValidator' };
   }
 
+  @Post('files')
+  // 上传多个文件的路由处理方法
+  // 第一个参数 'files'：前端表单中文件字段的名称 
+  // 第二个参数 10：限制上传的文件数量最多为 10 个
+  @UseInterceptors(FilesInterceptor('files', 10))
+  // files: Array<Express.Multer.File>：参数类型是 Multer.File 对象的数组
+  files(@UploadedFiles() files: Array<Express.Multer.File>) {
+    console.log('files', files);
+    return { message: 'Files uploaded successfully' };
+  }
 }
