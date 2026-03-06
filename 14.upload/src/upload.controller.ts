@@ -1,5 +1,5 @@
 import { Controller, Get, Post, UseInterceptors, UploadedFile, FileTypeValidator, MaxFileSizeValidator, ParseFilePipe, UploadedFiles } from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor, FileFieldsInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor, FileFieldsInterceptor, AnyFilesInterceptor, NoFilesInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { FileSizeValidationPipe } from './pipes/file-size-validation.pipe';
 @Controller('upload')
@@ -62,5 +62,12 @@ export class UploadController {
   anyFiles(@UploadedFiles() files: Array<Express.Multer.File>) {
     console.log(files);
     return { message: 'successfully' };
+  }
+
+  @Post('no-files')
+  // NoFilesInterceptor: 用于验证是否没有上传任何文件
+  @UseInterceptors(NoFilesInterceptor)
+  noFiles() {
+    return { message: 'No files uploaded' };
   }
 }
